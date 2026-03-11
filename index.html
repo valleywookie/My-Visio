@@ -47,39 +47,17 @@
                 name: 'manhattan', 
                 args: { 
                     step: 10,
-                    padding: 25,
-                    perpendicular: true // Forces the line to be 90 degrees as it exits
+                    padding: 20,
+                    // THIS IS THE FIX: Only avoid actual shapes, ignore the swimlanes
+                    excludeTypes: ['standard.Rectangle'], 
+                    startDirections: ['top', 'bottom', 'left', 'right'],
+                    endDirections: ['top', 'bottom', 'left', 'right']
                 } 
             },
             connector: { name: 'jumpover' },
-            attrs: { line: { stroke: '#333', strokeWidth: 2, targetMarker: { 'type': 'path', 'd': 'M 8 -4 0 0 8 4 Z', fill: '#333' } } }
+            attrs: { 
+                line: { stroke: '#333', strokeWidth: 2, targetMarker: { 'type': 'path', 'd': 'M 8 -4 0 0 8 4 Z', fill: '#333' } } 
+            }
         }),
-        validateConnection: (vs, ms, vt, mt) => ms && mt && vs !== vt,
-        snapLinks: { radius: 25 },
-        markAvailable: true,
-        interactive: (cellView) => !cellView.model.get('isLane')
-    });
-
-    // Ports are now explicitly labeled by their position
-    const ports = {
-        groups: { 
-            'pts': { 
-                position: 'ellipse', 
-                attrs: { circle: { r: 5, magnet: true, fill: '#0078d4', stroke: '#fff', strokeWidth: 2 } } 
-            } 
-        },
-        items: [
-            { group: 'pts', id: 'top', position: 'top' }, 
-            { group: 'pts', id: 'bottom', position: 'bottom' }, 
-            { group: 'pts', id: 'left', position: 'left' }, 
-            { group: 'pts', id: 'right', position: 'right' }
-        ]
-    };
-
-    function addLane() {
-        const lane = new joint.shapes.standard.Rectangle();
-        const laneCount = graph.getCells().filter(c => c.get('isLane')).length;
-        lane.resize(window.innerWidth - 60, 220);
-        lane.position(30, (laneCount * 225) + 30);
-        lane.attr({
-            body: { fill: 'transparent',
+        linkPinning: false,
+        snapLinks
