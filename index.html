@@ -2,27 +2,103 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>My Visio Pro - Stable Build</title>
+    <title>My Visio - Total Reset</title>
     <style>
-        body { font-family: 'Segoe UI', sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; background: #f3f2f1; overflow: hidden; }
-        .toolbar { background: white; padding: 12px; display: flex; gap: 10px; border-bottom: 1px solid #ccc; z-index: 1000; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        body { font-family: sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; background: #f3f2f1; }
+        .toolbar { background: white; padding: 10px; display: flex; gap: 10px; border-bottom: 1px solid #ccc; z-index: 100; }
         #canvas { flex-grow: 1; position: relative; background: white; overflow: auto; background-image: radial-gradient(#d1d1d1 1px, transparent 1px); background-size: 20px 20px; }
         
-        .shape { position: absolute; width: 140px; height: 70px; background: white; color: #333; display: flex; align-items: center; justify-content: center; font-weight: 600; cursor: move; user-select: none; text-align: center; font-size: 13px; z-index: 10; border: 3.5px solid; }
-        .process { border-color: #0078d4; }
+        .shape { position: absolute; width: 140px; height: 70px; background: white; color: #333; display: flex; align-items: center; justify-content: center; font-weight: bold; cursor: move; border: 3px solid #0078d4; z-index: 10; user-select: none; }
         .start { border-color: #107c10; border-radius: 50px; }
-        .decision { width: 90px; height: 90px; border-color: #6264a7; transform: rotate(45deg); }
-        .decision span { transform: rotate(-45deg); display: block; width: 100%; }
+        .decision { width: 80px; height: 80px; border-color: #6264a7; transform: rotate(45deg); }
+        .decision span { transform: rotate(-45deg); }
+        .data { border-color: #c43e1c; clip-path: polygon(15% 0%, 100% 0%, 85% 100%, 0% 100%); }
 
-        .data { border: none; background: transparent; }
-        .data-svg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; }
+        .lane { position: absolute; width: 95%; height: 200px; border: 2px dashed red; pointer-events: none; z-index: 1; }
+        .lane-label { pointer-events: auto; background: white; color: red; font-weight: bold; padding: 2px 5px; cursor: pointer; }
 
-        .lane { position: absolute; width: 98%; height: 230px; border: 2px dashed #d13438; z-index: 1; pointer-events: none; }
-        .lane-label { color: #d13438; font-weight: bold; pointer-events: auto; cursor: pointer; background: white; padding: 2px 8px; font-size: 14px; }
-
-        .port { position: absolute; width: 14px; height: 14px; background: #0078d4; border-radius: 50%; opacity: 0; cursor: crosshair; z-index: 20; border: 2px solid white; }
+        .port { position: absolute; width: 12px; height: 12px; background: #0078d4; border-radius: 50%; opacity: 0; cursor: crosshair; z-index: 20; }
         .shape:hover .port { opacity: 1; }
-        .p-top { top: -9px; left: calc(50% - 7px); }
-        .p-bottom { bottom: -9px; left: calc(50% - 7px); }
-        .p-left { left: -9px; top: calc(50% - 7px); }
-        .p-right {
+        .p-top { top: -6px; left: calc(50% - 6px); }
+        .p-bottom { bottom: -6px; left: calc(50% - 6px); }
+
+        button { padding: 8px 12px; cursor: pointer; }
+        svg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 5; }
+    </style>
+</head>
+<body>
+
+<div class="toolbar">
+    <button onclick="addLane()">+ Swimlane</button>
+    <button onclick="addShape('start', 'Start/End')">Start</button>
+    <button onclick="addShape('', 'Process')">Process</button>
+    <button onclick="addShape('decision', '<span>Decision</span>')">Decision</button>
+    <button onclick="addShape('data', 'Data')">Data</button>
+    <button onclick="window.print()" style="margin-left:auto;">Save PDF</button>
+</div>
+
+<div id="canvas"><svg id="svg-lines"></svg></div>
+
+<script>
+    let laneY = 20;
+    let connections = [];
+
+    function addShape(css, txt) {
+        const div = document.createElement('div');
+        div.className = 'shape ' + css;
+        div.innerHTML = txt + '<div class="port p-top"></div><div class="port p-bottom"></div>';
+        div.style.left = '100px'; div.style.top = '100px';
+        
+        div.onmousedown = function(e) {
+            if (e.target.classList.contains('port')) { startLine(e, div); return; }
+            let sX = e.clientX - div.offsetLeft;
+            let sY = e.clientY - div.offsetTop;
+            document.onmousemove = function(e) {
+                div.style.left = (e.clientX - sX) + 'px';
+                div.style.top = (e.clientY - sY) + 'px';
+                drawLines();
+            };
+            document.onmouseup = () => document.onmousemove = null;
+        };
+
+        div.ondblclick = () => { let n = prompt("Text:", div.innerText); if(n) div.innerText = n; };
+        document.getElementById('canvas').appendChild(div);
+    }
+
+    function addLane() {
+        const lane = document.createElement('div');
+        lane.className = 'lane';
+        lane.style.top = laneY + 'px'; lane.style.left = '10px';
+        lane.innerHTML = '<span class="lane-label" onclick="this.innerText=prompt(\'Name:\',\'Dept\')">DEPARTMENT</span>';
+        document.getElementById('canvas').appendChild(lane);
+        laneY += 220;
+    }
+
+    function startLine(e, startEl) {
+        document.onmousemove = (moveE) => drawLines(startEl, moveE.clientX, moveE.clientY);
+        document.onmouseup = (upE) => {
+            document.onmousemove = null;
+            const target = document.elementFromPoint(upE.clientX, upE.clientY);
+            const endEl = target ? target.closest('.shape') : null;
+            if (endEl && endEl !== startEl) connections.push({ from: startEl, to: endEl });
+            drawLines();
+        };
+    }
+
+    function drawLines(activeStart, mX, mY) {
+        const svg = document.getElementById('svg-lines');
+        svg.innerHTML = '';
+        const can = document.getElementById('canvas').getBoundingClientRect();
+
+        connections.forEach(c => {
+            const r1 = c.from.getBoundingClientRect();
+            const r2 = c.to.getBoundingClientRect();
+            const x1 = r1.left + 70 - can.left; const y1 = r1.top + 35 - can.top;
+            const x2 = r2.left + 70 - can.left; const y2 = r2.top + 35 - can.top;
+            const p = document.createElementNS("http://www.w3.org/2000/svg", "path");
+            p.setAttribute("d", `M ${x1} ${y1} L ${x1} ${(y1+y2)/2} L ${x2} ${(y1+y2)/2} L ${x2} ${y2}`);
+            p.setAttribute("stroke", "black"); p.setAttribute("stroke-width", "3"); p.setAttribute("fill", "none");
+            svg.appendChild(p);
+        });
+
+        if (activeStart) {
