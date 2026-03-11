@@ -1,36 +1,37 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Simple Visio Mimic</title>
+    <title>Visio Mimic Pro</title>
     <style>
-        body { font-family: 'Segoe UI', sans-serif; background: #f0f0f0; margin: 0; padding: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
-        .controls { background: white; padding: 15px; border-bottom: 1px solid #ccc; display: flex; gap: 10px; align-items: center; z-index: 100; }
+        body { font-family: 'Segoe UI', sans-serif; background: #f3f2f1; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+        .toolbar { background: white; padding: 12px; display: flex; gap: 10px; align-items: center; border-bottom: 1px solid #ccc; z-index: 100; }
         #canvas { position: relative; flex-grow: 1; background: white; overflow: auto; background-image: radial-gradient(#d1d1d1 1px, transparent 1px); background-size: 20px 20px; }
         .shape { 
             position: absolute; width: 130px; height: 65px; 
-            border: 2px solid #0078d4; background: #fff; color: #0078d4;
+            border: 2px solid #0078d4; background: #fff; color: #333;
             display: flex; align-items: center; justify-content: center;
-            font-weight: bold; cursor: move; user-select: none;
-            text-align: center; font-size: 12px; z-index: 10;
+            font-weight: 600; cursor: move; user-select: none;
+            text-align: center; font-size: 13px; z-index: 10;
+            box-shadow: 2px 2px 5px rgba(0,0,0,0.1);
         }
-        .start-shape { border-radius: 50px; border-color: green; color: green; }
-        .decision-shape { width: 80px; height: 80px; transform: rotate(45deg); border-color: purple; color: purple; }
-        .decision-shape span { transform: rotate(-45deg); }
+        .start { border-radius: 50px; border-color: #107c10; }
+        .decision { width: 80px; height: 80px; transform: rotate(45deg); border-color: #6264a7; }
+        .decision span { transform: rotate(-45deg); }
         .lane { position: absolute; width: 95%; height: 220px; border: 2px dashed #d13438; z-index: 1; padding: 10px; pointer-events: none; }
         .lane-label { color: #d13438; font-weight: bold; pointer-events: auto; cursor: pointer; background: white; padding: 2px 5px; }
         button { padding: 8px 15px; cursor: pointer; border: 1px solid #0078d4; background: white; color: #0078d4; font-weight: bold; border-radius: 4px; }
         button:hover { background: #0078d4; color: white; }
-        svg { position: absolute; top: 0; left: 0; width: 2000px; height: 2000px; pointer-events: none; z-index: 5; }
+        svg { position: absolute; top: 0; left: 0; width: 3000px; height: 3000px; pointer-events: none; z-index: 5; }
     </style>
 </head>
 <body>
 
-<div class="controls">
-    <button onclick="addShape('start-shape', 'Start/End')">+ Start/End</button>
+<div class="toolbar">
+    <button onclick="addShape('start', 'Start/End')">+ Start/End</button>
     <button onclick="addShape('', 'Process')">+ Process</button>
-    <button onclick="addShape('decision-shape', '<span>Decision?</span>')">+ Decision</button>
+    <button onclick="addShape('decision', '<span>Decision?</span>')">+ Decision</button>
     <button onclick="addLane()">+ Add Swimlane</button>
-    <span style="font-size: 11px; color: #666; margin-left: 10px;"><b>To Connect:</b> Click Shape A, then Shape B.</span>
+    <span style="font-size: 11px; color: #666; margin-left: 10px;"><b>Connect:</b> Click Shape 1, then Shape 2. | Double-click text to rename.</span>
     <button onclick="window.print()" style="margin-left:auto; background: #0078d4; color:white;">Save PDF</button>
 </div>
 
@@ -50,21 +51,24 @@
         div.style.left = '100px';
         div.style.top = '100px';
         
-        div.ondblclick = function() {
+        // Double-click to rename
+        div.ondblclick = function(e) {
+            e.stopPropagation();
             const val = prompt("Enter text:", this.innerText);
             if (val) this.innerHTML = cssClass.includes('decision') ? `<span>${val}</span>` : val;
         };
 
+        // Click logic for connecting
         div.onclick = function() {
             if (!firstSelected) {
                 firstSelected = this;
-                this.style.boxShadow = "0 0 10px rgba(0,120,212,0.8)";
+                this.style.outline = "3px solid #ffb900";
             } else {
                 if (firstSelected !== this) {
                     connections.push({ from: firstSelected, to: this });
                     drawLines();
                 }
-                firstSelected.style.boxShadow = "none";
+                firstSelected.style.outline = "none";
                 firstSelected = null;
             }
         };
@@ -96,34 +100,9 @@
             const x2 = r2.left + r2.width / 2 - canvasR.left;
             const y2 = r2.top + r2.height / 2 - canvasR.top;
 
-            const line = document.createElementNS("http://www.w3.org/2000/svg", "path");
-            // Orthogonal (90 degree) path
+            const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+            // Orthogonal path: Moves horizontally then vertically
             const d = `M ${x1} ${y1} L ${x1} ${(y1+y2)/2} L ${x2} ${(y1+y2)/2} L ${x2} ${y2}`;
-            line.setAttribute("d", d);
-            line.setAttribute("stroke", "#555");
-            line.setAttribute("stroke-width", "2");
-            line.setAttribute("fill", "none");
-            svg.appendChild(line);
-        });
-    }
-
-    function makeDraggable(el) {
-        let p1 = 0, p2 = 0, p3 = 0, p4 = 0;
-        el.onmousedown = function(e) {
-            p3 = e.clientX; p4 = e.clientY;
-            document.onmousemove = function(e) {
-                p1 = p3 - e.clientX; p2 = p4 - e.clientY;
-                p3 = e.clientX; p4 = e.clientY;
-                el.style.top = (el.offsetTop - p2) + "px";
-                el.style.left = (el.offsetLeft - p1) + "px";
-                drawLines();
-            };
-            document.onmouseup = function() { 
-                document.onmousemove = null; 
-                document.onmouseup = null; 
-            };
-        };
-    }
-</script>
-</body>
-</html>
+            path.setAttribute("d", d);
+            path.setAttribute("stroke", "#444");
+            path.setAttribute("stroke-width
