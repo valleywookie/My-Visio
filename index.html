@@ -1,91 +1,106 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/jointjs/3.7.7/joint.css" />
+    <title>Visio Mimic Pro</title>
     <style>
-        body { font-family: 'Segoe UI', sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
-        .toolbar { background: #ffffff; padding: 12px; display: flex; gap: 10px; align-items: center; border-bottom: 1px solid #d1d1d1; z-index: 1000; }
-        #canvas { flex-grow: 1; background-color: #fdfdfd; }
-        button { padding: 8px 16px; cursor: pointer; border: 1px solid #0078d4; border-radius: 2px; font-size: 13px; background: white; color: #0078d4; font-weight: 600; }
+        body { font-family: 'Segoe UI', sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; background: #f3f2f1; overflow: hidden; }
+        .toolbar { background: white; padding: 12px; display: flex; gap: 10px; border-bottom: 1px solid #ccc; z-index: 100; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        #canvas-container { flex-grow: 1; position: relative; overflow: auto; background-image: radial-gradient(#d1d1d1 1px, transparent 1px); background-size: 20px 20px; }
+        .shape { position: absolute; cursor: move; display: flex; align-items: center; justify-content: center; text-align: center; background: white; border: 2px solid; font-weight: bold; min-width: 120px; min-height: 60px; z-index: 5; box-shadow: 2px 2px 5px rgba(0,0,0,0.1); }
+        .process { border-color: #0078d4; color: #0078d4; }
+        .start { border-color: #107c10; color: #107c10; border-radius: 50px; }
+        .decision { border-color: #6264a7; color: #6264a7; width: 80px !important; height: 80px !important; transform: rotate(45deg); }
+        .decision span { transform: rotate(-45deg); }
+        .lane { position: absolute; border: 2px solid #d13438; width: 95%; height: 220px; z-index: 1; pointer-events: none; background: rgba(255,255,255,0.5); }
+        .lane-label { color: #d13438; font-weight: bold; padding: 10px; cursor: pointer; pointer-events: auto; }
+        button { padding: 8px 15px; cursor: pointer; background: white; border: 1px solid #0078d4; color: #0078d4; font-weight: bold; border-radius: 4px; }
         button:hover { background: #0078d4; color: white; }
-        .btn-lane { background: #fff1f0; border-color: #d13438; color: #d13438; }
-        .btn-pdf { background: #0078d4; color: white; margin-left: auto; }
-        .hint { color: #666; font-size: 11px; margin-left: 10px; }
+        svg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 2; }
     </style>
 </head>
 <body>
 
 <div class="toolbar">
-    <button class="btn-lane" onclick="addLane()">+ Add Swimlane</button>
-    <button onclick="addShape('rect')">Process</button>
-    <button onclick="addShape('ellipse')">Start/End</button>
-    <button onclick="addShape('diamond')">Decision</button>
-    <span class="hint"><b>To Connect:</b> Click first shape, then second shape. | Double-click text to rename.</span>
-    <button class="btn-pdf" onclick="exportPDF()">Export PDF</button>
+    <button onclick="addShape('start')">+ Start/End</button>
+    <button onclick="addShape('process')">+ Process</button>
+    <button onclick="addShape('decision')">+ Decision</button>
+    <button onclick="addLane()" class="btn-lane" style="border-color:#d13438; color:#d13438;">+ Add Swimlane</button>
+    <button style="margin-left:auto; background:#0078d4; color:white;" onclick="window.print()">Export PDF</button>
 </div>
 
-<div id="canvas"></div>
-
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.21/lodash.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/backbone.js/1.4.1/backbone-min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jointjs/3.7.7/joint.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<div id="canvas-container">
+    <svg id="line-svg"></svg>
+</div>
 
 <script>
-    const graph = new joint.dia.Graph();
-    const paper = new joint.dia.Paper({
-        el: document.getElementById('canvas'),
-        model: graph,
-        width: '100%',
-        height: '100%',
-        gridSize: 10,
-        drawGrid: { name: 'dot', color: '#e0e0e0' },
-        defaultLink: new joint.shapes.standard.Link({
-            router: { name: 'manhattan', args: { padding: 20, excludeTypes: ['standard.Rectangle'] } },
-            connector: { name: 'rounded' },
-            attrs: { line: { stroke: '#333', strokeWidth: 2, targetMarker: { 'type': 'path', 'd': 'M 8 -4 0 0 8 4 Z', fill: '#333' } } }
-        }),
-        interactive: (cellView) => !cellView.model.get('isLane')
-    });
-
-    let firstSelected = null;
-
-    // Handle Clicking to connect
-    paper.on('element:pointerclick', function(elementView) {
-        if (elementView.model.get('isLane')) return;
-
-        if (!firstSelected) {
-            firstSelected = elementView.model;
-            elementView.model.attr('body/strokeDasharray', '5,5'); // Visual cue
-        } else {
-            const link = new joint.shapes.standard.Link();
-            link.source(firstSelected);
-            link.target(elementView.model);
-            link.addTo(graph);
-            
-            firstSelected.attr('body/strokeDasharray', '0');
-            firstSelected = null;
-        }
-    });
-
-    function addLane() {
-        const lane = new joint.shapes.standard.Rectangle();
-        const count = graph.getCells().filter(c => c.get('isLane')).length;
-        lane.resize(window.innerWidth - 60, 220);
-        lane.position(30, (count * 230) + 30);
-        lane.attr({
-            body: { fill: 'transparent', stroke: '#d13438', strokeWidth: 1.5, pointerEvents: 'none' },
-            label: { text: 'DEPARTMENT ' + (count + 1), refY: 15, verticalAnchor: 'top', fill: '#d13438', fontWeight: 'bold' }
-        });
-        lane.set('isLane', true);
-        lane.toBack();
-        lane.addTo(graph);
-    }
+    let shapes = [];
+    let connections = [];
+    let laneCount = 0;
 
     function addShape(type) {
-        let shape;
-        const attr = { body: { fill: '#fff', strokeWidth: 2 } };
-        if (type === 'rect') {
-            shape = new joint.shapes.standard.Rectangle().resize(140, 70);
-            shape.attr({...attr, body: { ...attr.body, stroke: '#0078d4'
+        const id = 'shape-' + Date.now();
+        const el = document.createElement('div');
+        el.id = id;
+        el.className = `shape ${type}`;
+        el.innerHTML = `<span>${type === 'decision' ? 'Check' : 'Process'}</span>`;
+        el.style.left = '150px';
+        el.style.top = '100px';
+        
+        document.getElementById('canvas-container').appendChild(el);
+        makeDraggable(el);
+        
+        el.ondblclick = () => {
+            const txt = prompt("Rename:", el.innerText);
+            if(txt) el.querySelector('span').innerText = txt;
+        };
+
+        el.onclick = (e) => {
+            if (e.shiftKey) { // Shift + Click to select for connection
+                handleConnection(id);
+            }
+        };
+
+        shapes.push(id);
+    }
+
+    let firstSelected = null;
+    function handleConnection(id) {
+        if (!firstSelected) {
+            firstSelected = id;
+            document.getElementById(id).style.borderStyle = 'dashed';
+        } else {
+            if (firstSelected !== id) {
+                connections.push({ from: firstSelected, to: id });
+                drawLines();
+            }
+            document.getElementById(firstSelected).style.borderStyle = 'solid';
+            firstSelected = null;
+        }
+    }
+
+    function addLane() {
+        const lane = document.createElement('div');
+        lane.className = 'lane';
+        lane.style.top = (laneCount * 240 + 20) + 'px';
+        lane.style.left = '20px';
+        lane.innerHTML = `<div class="lane-label" onclick="this.innerText=prompt('Name:',this.innerText)">DEPARTMENT ${laneCount+1}</div>`;
+        document.getElementById('canvas-container').appendChild(lane);
+        laneCount++;
+    }
+
+    function drawLines() {
+        const svg = document.getElementById('line-svg');
+        svg.innerHTML = '';
+        connections.forEach(conn => {
+            const el1 = document.getElementById(conn.from);
+            const el2 = document.getElementById(conn.to);
+            if (!el1 || !el2) return;
+
+            const r1 = el1.getBoundingClientRect();
+            const r2 = el2.getBoundingClientRect();
+            const cont = document.getElementById('canvas-container').getBoundingClientRect();
+
+            const x1 = r1.left + r1.width / 2 - cont.left;
+            const y1 = r1.top + r1.height / 2 - cont.top;
+            const x2 = r2.left + r2.width / 2 - cont.left;
+            const y2 = r2.top + r2.height / 2 - cont.top;
