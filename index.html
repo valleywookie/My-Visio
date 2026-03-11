@@ -1,106 +1,54 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/jointjs/3.7.7/joint.css" />
+    <meta charset="UTF-8">
+    <title>Simplified Visio Mimic</title>
     <style>
-        body { font-family: 'Segoe UI', sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
-        .toolbar { background: #ffffff; padding: 12px; display: flex; gap: 10px; align-items: center; border-bottom: 1px solid #d1d1d1; z-index: 1000; }
-        #canvas { flex-grow: 1; background-color: #fdfdfd; position: relative; }
-        button { padding: 8px 16px; cursor: pointer; border: 1px solid #0078d4; border-radius: 2px; font-size: 13px; background: white; color: #0078d4; font-weight: 600; }
+        body { font-family: 'Segoe UI', sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; background: #f3f2f1; }
+        .toolbar { background: white; padding: 10px; display: flex; gap: 10px; border-bottom: 1px solid #ccc; z-index: 10; }
+        #canvas { flex-grow: 1; position: relative; overflow: auto; background-image: radial-gradient(#d1d1d1 1px, transparent 1px); background-size: 20px 20px; }
+        .shape { position: absolute; cursor: move; display: flex; align-items: center; justify-content: center; text-align: center; padding: 5px; box-sizing: border-box; font-size: 13px; font-weight: 600; border: 2px solid; user-select: none; background: white; min-width: 100px; min-height: 50px; }
+        .process { border-color: #0078d4; color: #0078d4; }
+        .start { border-color: #107c10; color: #107c10; border-radius: 50px; }
+        .decision { border-color: #6264a7; color: #6264a7; transform: rotate(0deg); clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%); width: 100px; height: 100px; }
+        .lane { position: absolute; border: 1px solid #d13438; width: 95%; height: 200px; z-index: -1; padding: 10px; pointer-events: none; }
+        .lane-label { color: #d13438; font-weight: bold; pointer-events: auto; cursor: pointer; }
+        button { padding: 8px 15px; cursor: pointer; background: white; border: 1px solid #0078d4; color: #0078d4; font-weight: bold; border-radius: 4px; }
         button:hover { background: #0078d4; color: white; }
-        .btn-lane { background: #fff1f0; border-color: #d13438; color: #d13438; }
-        .btn-pdf { background: #0078d4; color: white; margin-left: auto; }
-        /* Only show blue connection ports when hovering over a shape */
-        .joint-port { opacity: 0; }
-        .joint-cell:hover .joint-port { opacity: 1; }
     </style>
 </head>
 <body>
 
 <div class="toolbar">
-    <button class="btn-lane" onclick="addLane()">+ Add Swimlane</button>
-    <button onclick="addShape('rect')">Process</button>
-    <button onclick="addShape('ellipse')">Start/End</button>
-    <button onclick="addShape('diamond')">Decision</button>
-    <button onclick="addShape('data')">Data / Input</button>
-    <button class="btn-pdf" onclick="exportPDF()">Export PDF</button>
+    <button onclick="addShape('start')">+ Start/End</button>
+    <button onclick="addShape('process')">+ Process</button>
+    <button onclick="addShape('decision')">+ Decision</button>
+    <button onclick="addLane()">+ Add Swimlane</button>
+    <button style="margin-left:auto; background: #0078d4; color: white;" onclick="window.print()">Save as PDF</button>
 </div>
 
-<div id="canvas"></div>
-
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.21/lodash.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/backbone.js/1.4.1/backbone-min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jointjs/3.7.7/joint.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<div id="canvas" id="canvas"></div>
 
 <script>
-    const graph = new joint.dia.Graph();
-    const paper = new joint.dia.Paper({
-        el: document.getElementById('canvas'),
-        model: graph,
-        width: '100%',
-        height: '100%',
-        gridSize: 10,
-        drawGrid: { name: 'dot', color: '#e0e0e0' },
-        defaultLink: new joint.shapes.standard.Link({
-            router: { name: 'orthogonal' }, // Most stable 90-degree router
-            connector: { name: 'rounded' },
-            attrs: { 
-                line: { stroke: '#333', strokeWidth: 2, targetMarker: { 'type': 'path', 'd': 'M 8 -4 0 0 8 4 Z', fill: '#333' } } 
-            }
-        }),
-        validateConnection: (vs, ms, vt, mt) => ms && mt && vs !== vt,
-        snapLinks: { radius: 25 },
-        markAvailable: true,
-        defaultConnectionPoint: { name: 'boundary' }, // Ensures arrows touch the edge
-        interactive: (cellView) => !cellView.model.get('isLane')
-    });
-
-    const ports = {
-        groups: { 'pts': { position: 'ellipse', attrs: { circle: { r: 5, magnet: true, fill: '#0078d4', stroke: '#fff', strokeWidth: 2 } } } },
-        items: [{ position: 'top' }, { position: 'bottom' }, { position: 'left' }, { position: 'right' }]
-    };
-
-    function addLane() {
-        const lane = new joint.shapes.standard.Rectangle();
-        const laneCount = graph.getCells().filter(c => c.get('isLane')).length;
-        lane.resize(window.innerWidth - 60, 220);
-        lane.position(30, (laneCount * 230) + 30);
-        lane.attr({
-            body: { fill: 'transparent', stroke: '#d13438', strokeWidth: 1.5, pointerEvents: 'none' },
-            label: { text: 'DEPARTMENT ' + (laneCount + 1), refY: 15, verticalAnchor: 'top', fill: '#d13438', fontWeight: 'bold' }
-        });
-        lane.set('isLane', true);
-        lane.toBack();
-        lane.addTo(graph);
-    }
+    let laneCount = 0;
 
     function addShape(type) {
-        let shape;
-        if (type === 'rect') {
-            shape = new joint.shapes.standard.Rectangle().resize(140, 70).attr({ body: { fill: '#fff', stroke: '#0078d4', strokeWidth: 2 }, label: { text: 'Process Step' }});
-        } else if (type === 'ellipse') {
-            shape = new joint.shapes.standard.Ellipse().resize(120, 60).attr({ body: { fill: '#fff', stroke: '#107c10', strokeWidth: 2 }, label: { text: 'Start / End' }});
-        } else if (type === 'diamond') {
-            shape = new joint.shapes.standard.Polygon().resize(100, 100).attr({ body: { refPoints: '0,10 10,0 20,10 10,20', fill: '#fff', stroke: '#6264a7', strokeWidth: 2 }, label: { text: 'Decision?' }});
-        } else if (type === 'data') {
-            shape = new joint.shapes.standard.Polygon().resize(140, 70).attr({ body: { refPoints: '2,0 12,0 10,10 0,10', fill: '#fff', stroke: '#c43e1c', strokeWidth: 2 }, label: { text: 'Input Data' }});
-        }
-        shape.position(150, 150).set('ports', ports).addTo(graph);
-    }
+        const shape = document.createElement('div');
+        shape.className = `shape ${type}`;
+        shape.innerText = type === 'decision' ? 'Check' : 'New Step';
+        shape.style.left = '100px';
+        shape.style.top = '100px';
+        
+        // Make it draggable
+        dragElement(shape);
+        
+        // Double click to rename
+        shape.ondblclick = function() {
+            let newText = prompt("Enter text:", this.innerText);
+            if(newText) this.innerText = newText;
+        };
 
-    paper.on('cell:pointerdblclick', (view) => {
-        const updated = prompt("Rename:", view.model.attr('label/text'));
-        if (updated) view.model.attr('label/text', updated);
-    });
-
-    paper.on('cell:contextmenu', (view) => { if(confirm("Delete?")) view.model.remove(); });
-
-    function exportPDF() {
-        const element = document.getElementById('canvas');
-        html2pdf().from(element).set({ margin: 0, filename: 'flow-diagram.pdf', html2canvas: { scale: 2 } }).save();
-    }
-</script>
-</body>
-</html>
+        // Right click to delete
+        shape.oncontextmenu = function(e) {
+            e.preventDefault();
+            if(confirm("Delete shape?")) this.remove();
