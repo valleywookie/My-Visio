@@ -25,7 +25,7 @@
     <button onclick="addShape('ellipse')">Start/End</button>
     <button onclick="addShape('diamond')">Decision</button>
     <button onclick="addShape('data')">Data</button>
-    <span style="font-size: 11px; color: #666; margin-left: 10px;">Drag from blue dots to connect | Right-click to delete</span>
+    <span style="font-size: 11px; color: #666; margin-left: 10px;">Drag from blue dots to connect | Double-click text to rename | Right-click to delete</span>
     <button class="btn-pdf" onclick="window.print()">Export PDF</button>
 </div>
 
@@ -57,4 +57,46 @@
     });
 
     const ports = {
-        groups: { 'all': { position: 'ellipse', attrs: { circle:
+        groups: { 'all': { position: 'ellipse', attrs: { circle: { r: 5, magnet: true, fill: '#0078d4', stroke: '#fff', strokeWidth: 2 } } } },
+        items: [{ group: 'all', position: 'top' }, { group: 'all', position: 'bottom' }, { group: 'all', position: 'left' }, { group: 'all', position: 'right' }]
+    };
+
+    function addLane() {
+        const lane = new joint.shapes.standard.Rectangle();
+        const count = graph.getCells().filter(c => c.get('isLane')).length;
+        lane.resize(window.innerWidth - 60, 220).position(30, (count * 230) + 30);
+        lane.attr({
+            body: { fill: 'transparent', stroke: '#d13438', strokeDasharray: '5,5', pointerEvents: 'none' },
+            label: { text: 'DEPARTMENT ' + (count + 1), refY: 15, verticalAnchor: 'top', fill: '#d13438', fontWeight: 'bold' }
+        });
+        lane.set('isLane', true).toBack().addTo(graph);
+    }
+
+    function addShape(type) {
+        let shape;
+        const base = { body: { fill: '#fff', strokeWidth: 2 }, label: { fontSize: 12 } };
+        
+        if (type === 'rect') {
+            shape = new joint.shapes.standard.Rectangle().resize(140, 70).attr({...base, body: { ...base.body, stroke: '#0078d4' }, label: { text: 'Process' }});
+        } else if (type === 'ellipse') {
+            shape = new joint.shapes.standard.Ellipse().resize(120, 60).attr({...base, body: { ...base.body, stroke: '#107c10' }, label: { text: 'Start/End' }});
+        } else if (type === 'diamond') {
+            shape = new joint.shapes.standard.Polygon().resize(100, 100).attr({...base, body: { refPoints: '0,10 10,0 20,10 10,20', stroke: '#6264a7' }, label: { text: 'Decision' }});
+        } else {
+            // Data shape (Parallelogram)
+            shape = new joint.shapes.standard.Polygon().resize(140, 70).attr({...base, body: { refPoints: '2,0 12,0 10,10 0,10', stroke: '#c43e1c' }, label: { text: 'Data' }});
+        }
+        shape.position(150, 150).set('ports', ports).addTo(graph);
+    }
+
+    paper.on('cell:pointerdblclick', (view) => {
+        const val = prompt("Rename:", view.model.attr('label/text'));
+        if (val) view.model.attr('label/text', val);
+    });
+
+    paper.on('cell:contextmenu', (view) => {
+        if(confirm("Delete?")) view.model.remove();
+    });
+</script>
+</body>
+</html>
