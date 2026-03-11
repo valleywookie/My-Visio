@@ -1,33 +1,129 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Visio Test Page</title>
+    <title>Simple Visio Mimic</title>
     <style>
-        body { font-family: sans-serif; padding: 50px; background: #f0f0f0; }
-        .box { 
-            width: 200px; height: 100px; 
-            border: 3px solid #0078d4; background: white; 
+        body { font-family: 'Segoe UI', sans-serif; background: #f0f0f0; margin: 0; padding: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+        .controls { background: white; padding: 15px; border-bottom: 1px solid #ccc; display: flex; gap: 10px; align-items: center; z-index: 100; }
+        #canvas { position: relative; flex-grow: 1; background: white; overflow: auto; background-image: radial-gradient(#d1d1d1 1px, transparent 1px); background-size: 20px 20px; }
+        .shape { 
+            position: absolute; width: 130px; height: 65px; 
+            border: 2px solid #0078d4; background: #fff; color: #0078d4;
             display: flex; align-items: center; justify-content: center;
-            font-weight: bold; margin-bottom: 20px;
-            box-shadow: 5px 5px 0px #ccc;
+            font-weight: bold; cursor: move; user-select: none;
+            text-align: center; font-size: 12px; z-index: 10;
         }
-        .start { border-color: green; border-radius: 50px; }
-        .lane { border: 2px dashed red; padding: 20px; width: 500px; margin-bottom: 20px; }
+        .start-shape { border-radius: 50px; border-color: green; color: green; }
+        .decision-shape { width: 80px; height: 80px; transform: rotate(45deg); border-color: purple; color: purple; }
+        .decision-shape span { transform: rotate(-45deg); }
+        .lane { position: absolute; width: 95%; height: 220px; border: 2px dashed #d13438; z-index: 1; padding: 10px; pointer-events: none; }
+        .lane-label { color: #d13438; font-weight: bold; pointer-events: auto; cursor: pointer; background: white; padding: 2px 5px; }
+        button { padding: 8px 15px; cursor: pointer; border: 1px solid #0078d4; background: white; color: #0078d4; font-weight: bold; border-radius: 4px; }
+        button:hover { background: #0078d4; color: white; }
+        svg { position: absolute; top: 0; left: 0; width: 2000px; height: 2000px; pointer-events: none; z-index: 5; }
     </style>
 </head>
 <body>
 
-    <h1>If you can see this, the website is working!</h1>
-    <p>Below are the basic Visio shapes:</p>
+<div class="controls">
+    <button onclick="addShape('start-shape', 'Start/End')">+ Start/End</button>
+    <button onclick="addShape('', 'Process')">+ Process</button>
+    <button onclick="addShape('decision-shape', '<span>Decision?</span>')">+ Decision</button>
+    <button onclick="addLane()">+ Add Swimlane</button>
+    <span style="font-size: 11px; color: #666; margin-left: 10px;"><b>To Connect:</b> Click Shape A, then Shape B.</span>
+    <button onclick="window.print()" style="margin-left:auto; background: #0078d4; color:white;">Save PDF</button>
+</div>
 
-    <div class="lane">
-        <div class="box start">START SHAPE</div>
-        <div class="box">PROCESS STEP</div>
-    </div>
+<div id="canvas">
+    <svg id="svg-lines"></svg>
+</div>
 
-    <div class="lane">
-        <div class="box">DEPARTMENT 2 STEP</div>
-    </div>
+<script>
+    let laneY = 20;
+    let connections = [];
+    let firstSelected = null;
 
+    function addShape(cssClass, html) {
+        const div = document.createElement('div');
+        div.className = 'shape ' + cssClass;
+        div.innerHTML = html;
+        div.style.left = '100px';
+        div.style.top = '100px';
+        
+        div.ondblclick = function() {
+            const val = prompt("Enter text:", this.innerText);
+            if (val) this.innerHTML = cssClass.includes('decision') ? `<span>${val}</span>` : val;
+        };
+
+        div.onclick = function() {
+            if (!firstSelected) {
+                firstSelected = this;
+                this.style.boxShadow = "0 0 10px rgba(0,120,212,0.8)";
+            } else {
+                if (firstSelected !== this) {
+                    connections.push({ from: firstSelected, to: this });
+                    drawLines();
+                }
+                firstSelected.style.boxShadow = "none";
+                firstSelected = null;
+            }
+        };
+
+        makeDraggable(div);
+        document.getElementById('canvas').appendChild(div);
+    }
+
+    function addLane() {
+        const lane = document.createElement('div');
+        lane.className = 'lane';
+        lane.style.top = laneY + 'px';
+        lane.style.left = '20px';
+        lane.innerHTML = `<span class="lane-label" onclick="this.innerText=prompt('Name:',this.innerText)">DEPARTMENT NAME</span>`;
+        document.getElementById('canvas').appendChild(lane);
+        laneY += 240;
+    }
+
+    function drawLines() {
+        const svg = document.getElementById('svg-lines');
+        svg.innerHTML = '';
+        connections.forEach(conn => {
+            const r1 = conn.from.getBoundingClientRect();
+            const r2 = conn.to.getBoundingClientRect();
+            const canvasR = document.getElementById('canvas').getBoundingClientRect();
+
+            const x1 = r1.left + r1.width / 2 - canvasR.left;
+            const y1 = r1.top + r1.height / 2 - canvasR.top;
+            const x2 = r2.left + r2.width / 2 - canvasR.left;
+            const y2 = r2.top + r2.height / 2 - canvasR.top;
+
+            const line = document.createElementNS("http://www.w3.org/2000/svg", "path");
+            // Orthogonal (90 degree) path
+            const d = `M ${x1} ${y1} L ${x1} ${(y1+y2)/2} L ${x2} ${(y1+y2)/2} L ${x2} ${y2}`;
+            line.setAttribute("d", d);
+            line.setAttribute("stroke", "#555");
+            line.setAttribute("stroke-width", "2");
+            line.setAttribute("fill", "none");
+            svg.appendChild(line);
+        });
+    }
+
+    function makeDraggable(el) {
+        let p1 = 0, p2 = 0, p3 = 0, p4 = 0;
+        el.onmousedown = function(e) {
+            p3 = e.clientX; p4 = e.clientY;
+            document.onmousemove = function(e) {
+                p1 = p3 - e.clientX; p2 = p4 - e.clientY;
+                p3 = e.clientX; p4 = e.clientY;
+                el.style.top = (el.offsetTop - p2) + "px";
+                el.style.left = (el.offsetLeft - p1) + "px";
+                drawLines();
+            };
+            document.onmouseup = function() { 
+                document.onmousemove = null; 
+                document.onmouseup = null; 
+            };
+        };
+    }
+</script>
 </body>
 </html>
