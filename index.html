@@ -4,26 +4,24 @@
     <link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/jointjs/3.7.7/joint.css" />
     <style>
         body { font-family: 'Segoe UI', sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
-        .toolbar { background: #201f1e; padding: 10px; display: flex; gap: 8px; align-items: center; box-shadow: 0 2px 10px rgba(0,0,0,0.3); z-index: 100; }
-        #canvas { flex-grow: 1; background-color: #f3f2f1; }
-        button { padding: 8px 12px; cursor: pointer; border: none; border-radius: 2px; font-size: 13px; font-weight: 600; color: white; transition: 0.2s; }
-        button:hover { filter: brightness(1.2); }
-        .btn-start { background: #107c10; } /* Green */
-        .btn-proc { background: #0078d4; } /* Blue */
-        .btn-dec { background: #6264a7; } /* Purple */
-        .btn-data { background: #c43e1c; } /* Orange */
-        .btn-pdf { background: #a4262c; margin-left: auto; }
-        .tip { color: #8a8886; font-size: 12px; margin-left: 15px; }
+        .toolbar { background: #ffffff; padding: 12px; display: flex; gap: 10px; align-items: center; border-bottom: 1px solid #d1d1d1; box-shadow: 0 2px 4px rgba(0,0,0,0.05); z-index: 100; }
+        #canvas { flex-grow: 1; background-color: #f8f9fa; }
+        button { padding: 8px 16px; cursor: pointer; border: 1px solid #0078d4; border-radius: 2px; font-size: 13px; background: white; color: #0078d4; font-weight: 600; }
+        button:hover { background: #0078d4; color: white; }
+        .btn-lane { background: #fff1f0; border-color: #d13438; color: #d13438; }
+        .btn-pdf { background: #0078d4; color: white; margin-left: auto; }
+        .hint { color: #666; font-size: 11px; margin-left: 10px; }
     </style>
 </head>
 <body>
 
 <div class="toolbar">
-    <button class="btn-start" onclick="addShape('start')">◯ Start/End</button>
-    <button class="btn-proc" onclick="addShape('rect')">□ Process</button>
-    <button class="btn-dec" onclick="addShape('diamond')">◇ Decision</button>
-    <button class="btn-data" onclick="addShape('data')">▱ Data</button>
-    <span class="tip">Drag from purple dots to connect | Double-click text to edit</span>
+    <button class="btn-lane" onclick="addLane()">+ Add Swimlane</button>
+    <button onclick="addShape('rect')">Process</button>
+    <button onclick="addShape('ellipse')">Start/End</button>
+    <button onclick="addShape('diamond')">Decision</button>
+    <button onclick="addShape('data')">Data / Input</button>
+    <span class="hint">Double-click text to rename | Drag from blue dots to connect</span>
     <button class="btn-pdf" onclick="exportPDF()">Export PDF</button>
 </div>
 
@@ -43,49 +41,60 @@
         width: '100%',
         height: '100%',
         gridSize: 10,
-        drawGrid: { name: 'dot', color: '#d1d1d1' },
-        background: { color: '#ffffff' },
+        drawGrid: { name: 'dot', color: '#e0e0e0' },
         defaultLink: new joint.shapes.standard.Link({
-            router: { name: 'manhattan' }, // Makes lines turn at 90 degree angles like Visio
+            router: { name: 'manhattan' },
             connector: { name: 'rounded' },
-            attrs: { line: { stroke: '#333', strokeWidth: 2, targetMarker: { 'type': 'path', 'd': 'M 10 -5 0 0 10 5 Z' } } }
+            attrs: { line: { stroke: '#444', strokeWidth: 2, targetMarker: { 'type': 'path', 'd': 'M 8 -4 0 0 8 4 Z', fill: '#444' } } }
         }),
-        validateConnection: (vs, ms, vt, mt) => ms && mt && ms !== mt,
-        snapLinks: { radius: 20 },
+        validateConnection: (vs, ms, vt, mt) => ms && mt && vs !== vt,
+        snapLinks: { radius: 25 },
         markAvailable: true
     });
 
-    // Helper to add connection ports
-    const portConfig = {
-        groups: { 'all': { position: 'ellipse', attrs: { circle: { r: 5, magenta: true, fill: '#6264a7', stroke: '#fff', 'stroke-width': 2, magnet: true } } } },
-        items: [{ group: 'all', id: 't' }, { group: 'all', id: 'b' }, { group: 'all', id: 'l' }, { group: 'all', id: 'r' }]
+    const ports = {
+        groups: { 'pts': { position: 'ellipse', attrs: { circle: { r: 5, magnet: true, fill: '#0078d4', stroke: '#fff', strokeWidth: 2 } } } },
+        items: [{ group: 'pts' }, { group: 'pts' }, { group: 'pts' }, { group: 'pts' }]
     };
+
+    function addLane() {
+        const lane = new joint.shapes.standard.Rectangle();
+        lane.resize(window.innerWidth - 100, 200);
+        lane.position(50, (graph.getCells().filter(c => c.get('isLane')).length * 200) + 50);
+        lane.attr({
+            body: { fill: '#ffffff', stroke: '#d13438', strokeWidth: 1, strokeDasharray: '0' },
+            label: { text: 'DEPARTMENT NAME', refY: 15, verticalAnchor: 'top', fill: '#d13438', fontWeight: 'bold', fontSize: 14 }
+        });
+        lane.set('isLane', true);
+        lane.toBack();
+        lane.addTo(graph);
+    }
 
     function addShape(type) {
         let shape;
-        const pos = { x: 100, y: 100 };
-        
         if (type === 'rect') {
-            shape = new joint.shapes.standard.Rectangle().resize(120, 60).attr({ body: { fill: '#0078d4', stroke: 'none' }, label: { text: 'Process', fill: 'white' }});
-        } else if (type === 'start') {
-            shape = new joint.shapes.standard.Ellipse().resize(100, 50).attr({ body: { fill: '#107c10', stroke: 'none' }, label: { text: 'Start', fill: 'white' }});
+            shape = new joint.shapes.standard.Rectangle().resize(140, 70).attr({ body: { fill: '#fff', stroke: '#0078d4', strokeWidth: 2 }, label: { text: 'Process Step', fontSize: 12 }});
+        } else if (type === 'ellipse') {
+            shape = new joint.shapes.standard.Ellipse().resize(120, 60).attr({ body: { fill: '#fff', stroke: '#107c10', strokeWidth: 2 }, label: { text: 'Start / End', fontSize: 12 }});
         } else if (type === 'diamond') {
-            shape = new joint.shapes.standard.Polygon().resize(100, 100).attr({ body: { points: '50,0 100,50 50,100 0,50', fill: '#6264a7', stroke: 'none' }, label: { text: 'Decision', fill: 'white' }});
-        } else {
-            shape = new joint.shapes.standard.Polygon().resize(120, 60).attr({ body: { points: '20,0 120,0 100,60 0,60', fill: '#c43e1c', stroke: 'none' }, label: { text: 'Data', fill: 'white' }});
+            shape = new joint.shapes.standard.Polygon().resize(100, 100).attr({ body: { refPoints: '0,10 10,0 20,10 10,20', fill: '#fff', stroke: '#6264a7', strokeWidth: 2 }, label: { text: 'Decision?', fontSize: 11 }});
+        } else if (type === 'data') {
+            shape = new joint.shapes.standard.Polygon().resize(140, 70).attr({ body: { refPoints: '2,0 12,0 10,10 0,10', fill: '#fff', stroke: '#c43e1c', strokeWidth: 2 }, label: { text: 'Input Data', fontSize: 12 }});
         }
-
-        shape.position(pos.x, pos.y).set('ports', portConfig).addTo(graph);
+        shape.position(200, 200).set('ports', ports).addTo(graph);
     }
 
     paper.on('cell:pointerdblclick', (view) => {
-        const newText = prompt("Edit label:", view.model.attr('label/text'));
-        if (newText) view.model.attr('label/text', newText);
+        const current = view.model.attr('label/text');
+        const updated = prompt("Rename:", current);
+        if (updated) view.model.attr('label/text', updated);
     });
+
+    paper.on('cell:contextmenu', (view) => { if(confirm("Delete this?")) view.model.remove(); });
 
     function exportPDF() {
         const element = document.getElementById('canvas');
-        html2pdf().from(element).set({ margin: 0, filename: 'flowchart.pdf', html2canvas: { scale: 2 } }).save();
+        html2pdf().from(element).set({ margin: 0, filename: 'flow-diagram.pdf', html2canvas: { scale: 2 } }).save();
     }
 </script>
 </body>
