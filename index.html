@@ -1,86 +1,33 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Simple Flowchart Tool</title>
+    <title>Visio Test Page</title>
     <style>
-        body { font-family: sans-serif; background: #f0f0f0; margin: 0; padding: 20px; }
-        .controls { background: white; padding: 15px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
-        .canvas { position: relative; width: 100%; height: 800px; background: white; border: 1px solid #ccc; overflow: hidden; }
-        .shape { 
-            position: absolute; width: 120px; height: 60px; 
-            border: 2px solid #0078d4; background: #fff; color: #0078d4;
+        body { font-family: sans-serif; padding: 50px; background: #f0f0f0; }
+        .box { 
+            width: 200px; height: 100px; 
+            border: 3px solid #0078d4; background: white; 
             display: flex; align-items: center; justify-content: center;
-            font-weight: bold; cursor: move; user-select: none;
-            text-align: center; font-size: 12px;
+            font-weight: bold; margin-bottom: 20px;
+            box-shadow: 5px 5px 0px #ccc;
         }
-        .start-shape { border-radius: 50px; border-color: green; color: green; }
-        .lane { 
-            position: absolute; width: 98%; height: 200px; 
-            border: 2px dashed red; pointer-events: none; z-index: 0;
-        }
-        button { padding: 10px; margin-right: 5px; cursor: pointer; }
+        .start { border-color: green; border-radius: 50px; }
+        .lane { border: 2px dashed red; padding: 20px; width: 500px; margin-bottom: 20px; }
     </style>
 </head>
 <body>
 
-<div class="controls">
-    <button onclick="addShape('start-shape', 'Start/End')">+ Start/End</button>
-    <button onclick="addShape('', 'Process')">+ Process</button>
-    <button onclick="addLane()">+ Add Swimlane</button>
-    <button onclick="window.print()" style="float:right; background: #0078d4; color:white;">Save PDF</button>
-    <p style="font-size: 11px; color: #666;">Drag shapes to move them. Double-click to rename.</p>
-</div>
+    <h1>If you can see this, the website is working!</h1>
+    <p>Below are the basic Visio shapes:</p>
 
-<div id="canvas" class="canvas"></div>
+    <div class="lane">
+        <div class="box start">START SHAPE</div>
+        <div class="box">PROCESS STEP</div>
+    </div>
 
-<script>
-    let laneY = 10;
-
-    function addShape(cssClass, defaultText) {
-        const div = document.createElement('div');
-        div.className = 'shape ' + cssClass;
-        div.innerText = defaultText;
-        div.style.left = '50px';
-        div.style.top = '50px';
-        
-        // Double click to rename
-        div.ondblclick = function() {
-            const val = prompt("Enter text:", this.innerText);
-            if (val) this.innerText = val;
-        };
-
-        // Dragging logic
-        div.onmousedown = function(e) {
-            let shiftX = e.clientX - div.getBoundingClientRect().left;
-            let shiftY = e.clientY - div.getBoundingClientRect().top;
-
-            function moveAt(pageX, pageY) {
-                div.style.left = pageX - shiftX - document.getElementById('canvas').getBoundingClientRect().left + 'px';
-                div.style.top = pageY - shiftY - document.getElementById('canvas').getBoundingClientRect().top + 'px';
-            }
-
-            function onMouseMove(e) { moveAt(e.pageX, e.pageY); }
-
-            document.addEventListener('mousemove', onMouseMove);
-            div.onmouseup = function() {
-                document.removeEventListener('mousemove', onMouseMove);
-                div.onmouseup = null;
-            };
-        };
-
-        div.ondragstart = function() { return false; };
-        document.getElementById('canvas').appendChild(div);
-    }
-
-    function addLane() {
-        const lane = document.createElement('div');
-        lane.className = 'lane';
-        lane.style.top = laneY + 'px';
-        lane.style.left = '10px';
-        document.getElementById('canvas').appendChild(lane);
-        laneY += 210;
-    }
-</script>
+    <div class="lane">
+        <div class="box">DEPARTMENT 2 STEP</div>
+    </div>
 
 </body>
 </html>
