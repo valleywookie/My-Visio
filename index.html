@@ -1,106 +1,86 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Visio Mimic Pro</title>
+    <title>Simple Flowchart Tool</title>
     <style>
-        body { font-family: 'Segoe UI', sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; background: #f3f2f1; overflow: hidden; }
-        .toolbar { background: white; padding: 12px; display: flex; gap: 10px; border-bottom: 1px solid #ccc; z-index: 100; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
-        #canvas-container { flex-grow: 1; position: relative; overflow: auto; background-image: radial-gradient(#d1d1d1 1px, transparent 1px); background-size: 20px 20px; }
-        .shape { position: absolute; cursor: move; display: flex; align-items: center; justify-content: center; text-align: center; background: white; border: 2px solid; font-weight: bold; min-width: 120px; min-height: 60px; z-index: 5; box-shadow: 2px 2px 5px rgba(0,0,0,0.1); }
-        .process { border-color: #0078d4; color: #0078d4; }
-        .start { border-color: #107c10; color: #107c10; border-radius: 50px; }
-        .decision { border-color: #6264a7; color: #6264a7; width: 80px !important; height: 80px !important; transform: rotate(45deg); }
-        .decision span { transform: rotate(-45deg); }
-        .lane { position: absolute; border: 2px solid #d13438; width: 95%; height: 220px; z-index: 1; pointer-events: none; background: rgba(255,255,255,0.5); }
-        .lane-label { color: #d13438; font-weight: bold; padding: 10px; cursor: pointer; pointer-events: auto; }
-        button { padding: 8px 15px; cursor: pointer; background: white; border: 1px solid #0078d4; color: #0078d4; font-weight: bold; border-radius: 4px; }
-        button:hover { background: #0078d4; color: white; }
-        svg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 2; }
+        body { font-family: sans-serif; background: #f0f0f0; margin: 0; padding: 20px; }
+        .controls { background: white; padding: 15px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        .canvas { position: relative; width: 100%; height: 800px; background: white; border: 1px solid #ccc; overflow: hidden; }
+        .shape { 
+            position: absolute; width: 120px; height: 60px; 
+            border: 2px solid #0078d4; background: #fff; color: #0078d4;
+            display: flex; align-items: center; justify-content: center;
+            font-weight: bold; cursor: move; user-select: none;
+            text-align: center; font-size: 12px;
+        }
+        .start-shape { border-radius: 50px; border-color: green; color: green; }
+        .lane { 
+            position: absolute; width: 98%; height: 200px; 
+            border: 2px dashed red; pointer-events: none; z-index: 0;
+        }
+        button { padding: 10px; margin-right: 5px; cursor: pointer; }
     </style>
 </head>
 <body>
 
-<div class="toolbar">
-    <button onclick="addShape('start')">+ Start/End</button>
-    <button onclick="addShape('process')">+ Process</button>
-    <button onclick="addShape('decision')">+ Decision</button>
-    <button onclick="addLane()" class="btn-lane" style="border-color:#d13438; color:#d13438;">+ Add Swimlane</button>
-    <button style="margin-left:auto; background:#0078d4; color:white;" onclick="window.print()">Export PDF</button>
+<div class="controls">
+    <button onclick="addShape('start-shape', 'Start/End')">+ Start/End</button>
+    <button onclick="addShape('', 'Process')">+ Process</button>
+    <button onclick="addLane()">+ Add Swimlane</button>
+    <button onclick="window.print()" style="float:right; background: #0078d4; color:white;">Save PDF</button>
+    <p style="font-size: 11px; color: #666;">Drag shapes to move them. Double-click to rename.</p>
 </div>
 
-<div id="canvas-container">
-    <svg id="line-svg"></svg>
-</div>
+<div id="canvas" class="canvas"></div>
 
 <script>
-    let shapes = [];
-    let connections = [];
-    let laneCount = 0;
+    let laneY = 10;
 
-    function addShape(type) {
-        const id = 'shape-' + Date.now();
-        const el = document.createElement('div');
-        el.id = id;
-        el.className = `shape ${type}`;
-        el.innerHTML = `<span>${type === 'decision' ? 'Check' : 'Process'}</span>`;
-        el.style.left = '150px';
-        el.style.top = '100px';
+    function addShape(cssClass, defaultText) {
+        const div = document.createElement('div');
+        div.className = 'shape ' + cssClass;
+        div.innerText = defaultText;
+        div.style.left = '50px';
+        div.style.top = '50px';
         
-        document.getElementById('canvas-container').appendChild(el);
-        makeDraggable(el);
-        
-        el.ondblclick = () => {
-            const txt = prompt("Rename:", el.innerText);
-            if(txt) el.querySelector('span').innerText = txt;
+        // Double click to rename
+        div.ondblclick = function() {
+            const val = prompt("Enter text:", this.innerText);
+            if (val) this.innerText = val;
         };
 
-        el.onclick = (e) => {
-            if (e.shiftKey) { // Shift + Click to select for connection
-                handleConnection(id);
+        // Dragging logic
+        div.onmousedown = function(e) {
+            let shiftX = e.clientX - div.getBoundingClientRect().left;
+            let shiftY = e.clientY - div.getBoundingClientRect().top;
+
+            function moveAt(pageX, pageY) {
+                div.style.left = pageX - shiftX - document.getElementById('canvas').getBoundingClientRect().left + 'px';
+                div.style.top = pageY - shiftY - document.getElementById('canvas').getBoundingClientRect().top + 'px';
             }
+
+            function onMouseMove(e) { moveAt(e.pageX, e.pageY); }
+
+            document.addEventListener('mousemove', onMouseMove);
+            div.onmouseup = function() {
+                document.removeEventListener('mousemove', onMouseMove);
+                div.onmouseup = null;
+            };
         };
 
-        shapes.push(id);
-    }
-
-    let firstSelected = null;
-    function handleConnection(id) {
-        if (!firstSelected) {
-            firstSelected = id;
-            document.getElementById(id).style.borderStyle = 'dashed';
-        } else {
-            if (firstSelected !== id) {
-                connections.push({ from: firstSelected, to: id });
-                drawLines();
-            }
-            document.getElementById(firstSelected).style.borderStyle = 'solid';
-            firstSelected = null;
-        }
+        div.ondragstart = function() { return false; };
+        document.getElementById('canvas').appendChild(div);
     }
 
     function addLane() {
         const lane = document.createElement('div');
         lane.className = 'lane';
-        lane.style.top = (laneCount * 240 + 20) + 'px';
-        lane.style.left = '20px';
-        lane.innerHTML = `<div class="lane-label" onclick="this.innerText=prompt('Name:',this.innerText)">DEPARTMENT ${laneCount+1}</div>`;
-        document.getElementById('canvas-container').appendChild(lane);
-        laneCount++;
+        lane.style.top = laneY + 'px';
+        lane.style.left = '10px';
+        document.getElementById('canvas').appendChild(lane);
+        laneY += 210;
     }
+</script>
 
-    function drawLines() {
-        const svg = document.getElementById('line-svg');
-        svg.innerHTML = '';
-        connections.forEach(conn => {
-            const el1 = document.getElementById(conn.from);
-            const el2 = document.getElementById(conn.to);
-            if (!el1 || !el2) return;
-
-            const r1 = el1.getBoundingClientRect();
-            const r2 = el2.getBoundingClientRect();
-            const cont = document.getElementById('canvas-container').getBoundingClientRect();
-
-            const x1 = r1.left + r1.width / 2 - cont.left;
-            const y1 = r1.top + r1.height / 2 - cont.top;
-            const x2 = r2.left + r2.width / 2 - cont.left;
-            const y2 = r2.top + r2.height / 2 - cont.top;
+</body>
+</html>
