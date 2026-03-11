@@ -1,102 +1,91 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <meta charset="utf-8">
     <title>My Visio Pro</title>
-    <link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/jointjs/3.7.7/joint.css" />
     <style>
-        body { font-family: 'Segoe UI', sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
-        .toolbar { background: #ffffff; padding: 10px; display: flex; gap: 8px; align-items: center; border-bottom: 1px solid #ccc; z-index: 1000; }
-        #canvas { flex-grow: 1; background-color: #f8f9fa; }
-        button { padding: 8px 12px; cursor: pointer; border: 1px solid #0078d4; border-radius: 4px; background: white; color: #0078d4; font-weight: 600; font-size: 13px; }
+        body { font-family: 'Segoe UI', sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; background: #f3f2f1; overflow: hidden; }
+        .toolbar { background: white; padding: 12px; display: flex; gap: 10px; align-items: center; border-bottom: 1px solid #ccc; z-index: 1000; }
+        #canvas { flex-grow: 1; position: relative; background: white; overflow: auto; background-image: radial-gradient(#d1d1d1 1px, transparent 1px); background-size: 20px 20px; }
+        .shape { 
+            position: absolute; width: 140px; height: 70px; 
+            border: 2px solid #0078d4; background: white; color: #333;
+            display: flex; align-items: center; justify-content: center;
+            font-weight: 600; cursor: move; user-select: none;
+            text-align: center; font-size: 13px; z-index: 10;
+            box-shadow: 2px 2px 5px rgba(0,0,0,0.1);
+        }
+        .start { border-radius: 50px; border-color: #107c10; }
+        .decision { width: 90px; height: 90px; transform: rotate(45deg); border-color: #6264a7; }
+        .decision span { transform: rotate(-45deg); }
+        .data { clip-path: polygon(20% 0%, 100% 0%, 80% 100%, 0% 100%); border-color: #c43e1c; }
+        .lane { position: absolute; width: 98%; height: 230px; border: 2px dashed #d13438; z-index: 1; pointer-events: none; }
+        .lane-label { color: #d13438; font-weight: bold; pointer-events: auto; cursor: pointer; background: white; padding: 2px 5px; }
+        .port { position: absolute; width: 12px; height: 12px; background: #0078d4; border-radius: 50%; opacity: 0; cursor: crosshair; z-index: 20; border: 2px solid white; }
+        .shape:hover .port { opacity: 1; }
+        .p-top { top: -8px; left: calc(50% - 6px); }
+        .p-bottom { bottom: -8px; left: calc(50% - 6px); }
+        .p-left { left: -8px; top: calc(50% - 6px); }
+        .p-right { right: -8px; top: calc(50% - 6px); }
+        button { padding: 8px 15px; cursor: pointer; border: 1px solid #0078d4; background: white; color: #0078d4; font-weight: bold; border-radius: 4px; }
         button:hover { background: #0078d4; color: white; }
-        .btn-lane { border-color: #d13438; color: #d13438; }
-        .btn-pdf { background: #0078d4; color: white; margin-left: auto; }
-        /* Style for connection ports */
-        .joint-port { opacity: 0; transition: opacity 0.2s; }
-        .joint-cell:hover .joint-port { opacity: 1; }
+        svg { position: absolute; top: 0; left: 0; width: 5000px; height: 5000px; pointer-events: none; z-index: 5; }
+        .line-path { stroke: #444; stroke-width: 2; fill: none; pointer-events: auto; cursor: pointer; }
     </style>
 </head>
 <body>
 
 <div class="toolbar">
-    <button class="btn-lane" onclick="addLane()">+ Add Swimlane</button>
-    <button onclick="addShape('rect')">Process</button>
-    <button onclick="addShape('ellipse')">Start/End</button>
-    <button onclick="addShape('diamond')">Decision</button>
-    <button onclick="addShape('data')">Data</button>
-    <span style="font-size: 11px; color: #666; margin-left: 10px;">Drag from blue dots to connect | Double-click text to rename | Right-click to delete</span>
-    <button class="btn-pdf" onclick="window.print()">Export PDF</button>
+    <button onclick="addLane()" style="border-color:#d13438; color:#d13438;">+ Add Swimlane</button>
+    <button onclick="addShape('start', 'Start/End')">Process</button>
+    <button onclick="addShape('', 'Process')">Process</button>
+    <button onclick="addShape('decision', '<span>Decision</span>')">Decision</button>
+    <button onclick="addShape('data', 'Data')">Data</button>
+    <span style="font-size: 11px; color: #666; margin-left: 10px;">Drag blue dots to connect | Right-click shape/Double-click line to delete</span>
+    <button onclick="window.print()" style="margin-left:auto; background: #0078d4; color:white;">Export PDF</button>
 </div>
 
-<div id="canvas"></div>
-
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.21/lodash.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/backbone.js/1.4.1/backbone-min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jointjs/3.7.7/joint.js"></script>
+<div id="canvas">
+    <svg id="svg-lines"></svg>
+</div>
 
 <script>
-    const graph = new joint.dia.Graph();
-    const paper = new joint.dia.Paper({
-        el: document.getElementById('canvas'),
-        model: graph,
-        width: '100%',
-        height: '100%',
-        gridSize: 10,
-        drawGrid: { name: 'dot', color: '#d1d1d1' },
-        defaultLink: new joint.shapes.standard.Link({
-            router: { name: 'manhattan' },
-            connector: { name: 'rounded' },
-            attrs: { line: { stroke: '#444', strokeWidth: 2, targetMarker: { 'type': 'path', 'd': 'M 8 -4 0 0 8 4 Z', fill: '#444' } } }
-        }),
-        validateConnection: (vs, ms, vt, mt) => ms && mt && vs !== vt,
-        snapLinks: { radius: 20 },
-        markAvailable: true,
-        interactive: (cellView) => !cellView.model.get('isLane')
-    });
+    let laneY = 20;
+    let connections = [];
 
-    const ports = {
-        groups: { 'all': { position: 'ellipse', attrs: { circle: { r: 5, magnet: true, fill: '#0078d4', stroke: '#fff', strokeWidth: 2 } } } },
-        items: [{ group: 'all', position: 'top' }, { group: 'all', position: 'bottom' }, { group: 'all', position: 'left' }, { group: 'all', position: 'right' }]
-    };
+    function addShape(cssClass, html) {
+        const div = document.createElement('div');
+        div.className = 'shape ' + cssClass;
+        div.innerHTML = html + `
+            <div class="port p-top"></div><div class="port p-bottom"></div>
+            <div class="port p-left"></div><div class="port p-right"></div>
+        `;
+        div.style.left = '150px'; div.style.top = '150px';
+        
+        div.ondblclick = (e) => {
+            const val = prompt("Rename:", div.innerText);
+            if (val) div.querySelector('span') ? div.querySelector('span').innerText = val : div.firstChild.textContent = val;
+        };
+
+        div.oncontextmenu = (e) => {
+            e.preventDefault();
+            if(confirm("Delete shape?")) {
+                connections = connections.filter(c => c.from !== div && c.to !== div);
+                div.remove(); drawLines();
+            }
+        };
+
+        makeDraggable(div);
+        document.getElementById('canvas').appendChild(div);
+    }
 
     function addLane() {
-        const lane = new joint.shapes.standard.Rectangle();
-        const count = graph.getCells().filter(c => c.get('isLane')).length;
-        lane.resize(window.innerWidth - 60, 220).position(30, (count * 230) + 30);
-        lane.attr({
-            body: { fill: 'transparent', stroke: '#d13438', strokeDasharray: '5,5', pointerEvents: 'none' },
-            label: { text: 'DEPARTMENT ' + (count + 1), refY: 15, verticalAnchor: 'top', fill: '#d13438', fontWeight: 'bold' }
-        });
-        lane.set('isLane', true).toBack().addTo(graph);
+        const lane = document.createElement('div');
+        lane.className = 'lane';
+        lane.style.top = laneY + 'px'; lane.style.left = '10px';
+        lane.innerHTML = `<span class="lane-label" onclick="this.innerText=prompt('Name:',this.innerText)">DEPARTMENT NAME</span>`;
+        document.getElementById('canvas').appendChild(lane);
+        laneY += 240;
     }
 
-    function addShape(type) {
-        let shape;
-        const base = { body: { fill: '#fff', strokeWidth: 2 }, label: { fontSize: 12 } };
-        
-        if (type === 'rect') {
-            shape = new joint.shapes.standard.Rectangle().resize(140, 70).attr({...base, body: { ...base.body, stroke: '#0078d4' }, label: { text: 'Process' }});
-        } else if (type === 'ellipse') {
-            shape = new joint.shapes.standard.Ellipse().resize(120, 60).attr({...base, body: { ...base.body, stroke: '#107c10' }, label: { text: 'Start/End' }});
-        } else if (type === 'diamond') {
-            shape = new joint.shapes.standard.Polygon().resize(100, 100).attr({...base, body: { refPoints: '0,10 10,0 20,10 10,20', stroke: '#6264a7' }, label: { text: 'Decision' }});
-        } else {
-            // Data shape (Parallelogram)
-            shape = new joint.shapes.standard.Polygon().resize(140, 70).attr({...base, body: { refPoints: '2,0 12,0 10,10 0,10', stroke: '#c43e1c' }, label: { text: 'Data' }});
-        }
-        shape.position(150, 150).set('ports', ports).addTo(graph);
-    }
-
-    paper.on('cell:pointerdblclick', (view) => {
-        const val = prompt("Rename:", view.model.attr('label/text'));
-        if (val) view.model.attr('label/text', val);
-    });
-
-    paper.on('cell:contextmenu', (view) => {
-        if(confirm("Delete?")) view.model.remove();
-    });
-</script>
-</body>
-</html>
+    function makeDraggable(el) {
+        let p1 =
