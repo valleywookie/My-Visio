@@ -3,25 +3,27 @@
 <head>
     <link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/jointjs/3.7.7/joint.css" />
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
-        .toolbar { background: #2b2b2b; padding: 12px; display: flex; gap: 12px; align-items: center; box-shadow: 0 2px 5px rgba(0,0,0,0.2); z-index: 10; }
-        #canvas { flex-grow: 1; background-color: #ffffff; cursor: crosshair; }
-        button { padding: 10px 16px; cursor: pointer; border: none; border-radius: 4px; font-weight: 600; transition: opacity 0.2s; }
-        button:hover { opacity: 0.8; }
-        .btn-process { background: #0078d4; color: white; }
-        .btn-decision { background: #6264a7; color: white; }
-        .btn-data { background: #28a745; color: white; }
-        .btn-pdf { background: #d83b01; color: white; margin-left: auto; }
-        .instruction { color: #ccc; font-size: 12px; margin-left: 10px; }
+        body { font-family: 'Segoe UI', sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+        .toolbar { background: #201f1e; padding: 10px; display: flex; gap: 8px; align-items: center; box-shadow: 0 2px 10px rgba(0,0,0,0.3); z-index: 100; }
+        #canvas { flex-grow: 1; background-color: #f3f2f1; }
+        button { padding: 8px 12px; cursor: pointer; border: none; border-radius: 2px; font-size: 13px; font-weight: 600; color: white; transition: 0.2s; }
+        button:hover { filter: brightness(1.2); }
+        .btn-start { background: #107c10; } /* Green */
+        .btn-proc { background: #0078d4; } /* Blue */
+        .btn-dec { background: #6264a7; } /* Purple */
+        .btn-data { background: #c43e1c; } /* Orange */
+        .btn-pdf { background: #a4262c; margin-left: auto; }
+        .tip { color: #8a8886; font-size: 12px; margin-left: 15px; }
     </style>
 </head>
 <body>
 
 <div class="toolbar">
-    <button class="btn-process" onclick="addShape('Rect')">+ Process</button>
-    <button class="btn-decision" onclick="addShape('Diamond')">+ Decision</button>
-    <button class="btn-data" onclick="addShape('Cylinder')">+ Data</button>
-    <span class="instruction">Double-click shape to edit text | Drag from center to connect</span>
+    <button class="btn-start" onclick="addShape('start')">◯ Start/End</button>
+    <button class="btn-proc" onclick="addShape('rect')">□ Process</button>
+    <button class="btn-dec" onclick="addShape('diamond')">◇ Decision</button>
+    <button class="btn-data" onclick="addShape('data')">▱ Data</button>
+    <span class="tip">Drag from purple dots to connect | Double-click text to edit</span>
     <button class="btn-pdf" onclick="exportPDF()">Export PDF</button>
 </div>
 
@@ -41,60 +43,49 @@
         width: '100%',
         height: '100%',
         gridSize: 10,
-        drawGrid: true,
-        background: { color: '#f0f0f0' },
-        defaultLink: new joint.shapes.standard.Link(),
-        validateConnection: (cellViewS, magnetS, cellViewT, magnetT) => cellViewS !== cellViewT,
-        snapLinks: { radius: 25 },
-        linkPinning: false, // Links must be connected to a shape
+        drawGrid: { name: 'dot', color: '#d1d1d1' },
+        background: { color: '#ffffff' },
+        defaultLink: new joint.shapes.standard.Link({
+            router: { name: 'manhattan' }, // Makes lines turn at 90 degree angles like Visio
+            connector: { name: 'rounded' },
+            attrs: { line: { stroke: '#333', strokeWidth: 2, targetMarker: { 'type': 'path', 'd': 'M 10 -5 0 0 10 5 Z' } } }
+        }),
+        validateConnection: (vs, ms, vt, mt) => ms && mt && ms !== mt,
+        snapLinks: { radius: 20 },
         markAvailable: true
     });
 
+    // Helper to add connection ports
+    const portConfig = {
+        groups: { 'all': { position: 'ellipse', attrs: { circle: { r: 5, magenta: true, fill: '#6264a7', stroke: '#fff', 'stroke-width': 2, magnet: true } } } },
+        items: [{ group: 'all', id: 't' }, { group: 'all', id: 'b' }, { group: 'all', id: 'l' }, { group: 'all', id: 'r' }]
+    };
+
     function addShape(type) {
         let shape;
-        if (type === 'Rect') {
-            shape = new joint.shapes.standard.Rectangle();
-            shape.attr({ body: { fill: '#0078d4', stroke: '#005a9e', strokeWidth: 2, rx: 2, ry: 2 }, label: { text: 'New Process', fill: 'white', fontWeight: 'bold' }});
-        } else if (type === 'Diamond') {
-            shape = new joint.shapes.standard.Polygon();
-            // Diamond points
-            shape.attr({ body: { refPoints: '0,10 10,0 20,10 10,20', fill: '#6264a7', stroke: '#48497e', strokeWidth: 2 }, label: { text: 'Decision?', fill: 'white', fontWeight: 'bold' }});
-        } else {
-            shape = new joint.shapes.standard.Cylinder();
-            shape.attr({ body: { fill: '#28a745', stroke: '#1e7e34', strokeWidth: 2 }, label: { text: 'Database', fill: 'white', fontWeight: 'bold' }});
-        }
+        const pos = { x: 100, y: 100 };
         
-        shape.position(150, 150);
-        shape.resize(140, 70);
-        shape.addTo(graph);
+        if (type === 'rect') {
+            shape = new joint.shapes.standard.Rectangle().resize(120, 60).attr({ body: { fill: '#0078d4', stroke: 'none' }, label: { text: 'Process', fill: 'white' }});
+        } else if (type === 'start') {
+            shape = new joint.shapes.standard.Ellipse().resize(100, 50).attr({ body: { fill: '#107c10', stroke: 'none' }, label: { text: 'Start', fill: 'white' }});
+        } else if (type === 'diamond') {
+            shape = new joint.shapes.standard.Polygon().resize(100, 100).attr({ body: { points: '50,0 100,50 50,100 0,50', fill: '#6264a7', stroke: 'none' }, label: { text: 'Decision', fill: 'white' }});
+        } else {
+            shape = new joint.shapes.standard.Polygon().resize(120, 60).attr({ body: { points: '20,0 120,0 100,60 0,60', fill: '#c43e1c', stroke: 'none' }, label: { text: 'Data', fill: 'white' }});
+        }
+
+        shape.position(pos.x, pos.y).set('ports', portConfig).addTo(graph);
     }
 
-    // INTERACTION: Double-click to Edit Text
-    paper.on('cell:pointerdblclick', function(cellView) {
-        const currentText = cellView.model.attr('label/text');
-        const newText = prompt("Enter new text for this shape:", currentText);
-        if (newText !== null) {
-            cellView.model.attr('label/text', newText);
-        }
-    });
-
-    // Right-click to delete a shape
-    paper.on('cell:contextmenu', function(cellView) {
-        if(confirm("Delete this item?")) {
-            cellView.model.remove();
-        }
+    paper.on('cell:pointerdblclick', (view) => {
+        const newText = prompt("Edit label:", view.model.attr('label/text'));
+        if (newText) view.model.attr('label/text', newText);
     });
 
     function exportPDF() {
         const element = document.getElementById('canvas');
-        const opt = {
-            margin: 0.5,
-            filename: 'my-visio-flow.pdf',
-            image: { type: 'jpeg', quality: 0.98 },
-            html2canvas: { scale: 2 },
-            jsPDF: { unit: 'in', format: 'letter', orientation: 'landscape' }
-        };
-        html2pdf().set(opt).from(element).save();
+        html2pdf().from(element).set({ margin: 0, filename: 'flowchart.pdf', html2canvas: { scale: 2 } }).save();
     }
 </script>
 </body>
