@@ -5,40 +5,48 @@
     <title>My Visio Pro</title>
     <style>
         body { background: #f3f2f1; margin: 0; padding: 0; display: flex; flex-direction: column; height: 100vh; font-family: sans-serif; overflow: hidden; }
-        .toolbar { background: white; padding: 12px; display: flex; gap: 10px; border-bottom: 1px solid #ccc; z-index: 100; }
+        .toolbar { background: white; padding: 12px; display: flex; gap: 10px; align-items: center; border-bottom: 1px solid #ccc; z-index: 1000; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
         #canvas { flex-grow: 1; position: relative; overflow: auto; background-image: radial-gradient(#d1d1d1 1px, transparent 1px); background-size: 20px 20px; }
         
-        /* SHAPE TEXT FIXES ADDED HERE */
+        /* Safe text wrapping added here */
         .shape { 
-            position: absolute; width: 140px; height: 70px; background: white; display: flex; align-items: center; justify-content: center; 
-            font-weight: bold; cursor: move; border: 3px solid; user-select: none; z-index: 10; color: #333;
-            box-sizing: border-box; padding: 8px; overflow: hidden; word-wrap: break-word; font-size: 11px; line-height: 1.2; text-align: center;
+            position: absolute; width: 140px; height: 70px; 
+            background: white; color: #333;
+            display: flex; align-items: center; justify-content: center;
+            font-weight: 600; cursor: move; user-select: none;
+            text-align: center; font-size: 13px; z-index: 10;
+            box-sizing: border-box; padding: 10px; word-wrap: break-word; line-height: 1.1;
         }
         
-        .process { border-color: #0078d4; }
-        .start { border-color: #107c10; border-radius: 50px; }
-        .decision { width: 90px; height: 90px; border-color: #6264a7; transform: rotate(45deg); padding: 12px; }
+        .process { border: 2.5px solid #0078d4; box-shadow: 2px 2px 5px rgba(0,0,0,0.1); }
+        .start { border: 2.5px solid #107c10; border-radius: 50px; }
+        .decision { width: 90px; height: 90px; border: 2.5px solid #6264a7; transform: rotate(45deg); background: white; padding: 15px; }
         .decision span { transform: rotate(-45deg); display: block; }
-        .data { border: none; background: transparent; padding: 0; }
+
         .data-svg-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; }
-        .data-text { z-index: 11; width: 100%; padding: 8px 15px; box-sizing: border-box; overflow: hidden; pointer-events: none; }
-        
+        .data-text { z-index: 11; width: 100%; pointer-events: none; }
+        .data { border: none; background: transparent; padding: 0; }
+
         .lane { position: absolute; width: 98%; height: 230px; border: 2px dashed #d13438; z-index: 1; pointer-events: none; }
         .lane-label { color: #d13438; font-weight: bold; pointer-events: auto; cursor: pointer; background: white; padding: 2px 8px; font-size: 14px; }
-        .port { position: absolute; width: 12px; height: 12px; background: #0078d4; border-radius: 50%; opacity: 0; cursor: crosshair; z-index: 20; border: 2px solid white; }
+
+        .port { position: absolute; width: 14px; height: 14px; background: #0078d4; border-radius: 50%; opacity: 0; cursor: crosshair; z-index: 20; border: 2px solid white; box-shadow: 0 0 4px rgba(0,0,0,0.3); }
         .shape:hover .port { opacity: 1; }
-        .p-top { top: -8px; left: calc(50% - 6px); }
-        .p-bottom { bottom: -8px; left: calc(50% - 6px); }
-        .p-left { left: -8px; top: calc(50% - 6px); }
-        .p-right { right: -8px; top: calc(50% - 6px); }
-        button { padding: 8px 12px; cursor: pointer; border: 1px solid #0078d4; background: white; color: #0078d4; font-weight: bold; border-radius: 4px; }
+        .p-top { top: -9px; left: calc(50% - 7px); }
+        .p-bottom { bottom: -9px; left: calc(50% - 7px); }
+        .p-left { left: -9px; top: calc(50% - 7px); }
+        .p-right { right: -9px; top: calc(50% - 7px); }
+
+        button { padding: 8px 15px; cursor: pointer; border: 1px solid #0078d4; background: white; color: #0078d4; font-weight: bold; border-radius: 4px; }
         button:hover { background: #0078d4; color: white; }
+        
         svg#svg-lines { position: absolute; top: 0; left: 0; width: 5000px; height: 5000px; pointer-events: none; z-index: 5; }
         .line-path { stroke: #222; stroke-width: 3; fill: none; pointer-events: auto; cursor: pointer; }
         .line-hitbox { stroke: transparent; stroke-width: 15; fill: none; pointer-events: auto; cursor: pointer; }
-        .line-elbow { fill: #0078d4; stroke: white; stroke-width: 2; cursor: ns-resize; pointer-events: auto; opacity: 0; }
-        svg#svg-lines:hover .line-elbow { opacity: 1; }
+        .line-elbow { fill: #0078d4; stroke: white; stroke-width: 2; cursor: ns-resize; pointer-events: auto; opacity: 0; transition: opacity 0.2s; }
+        svg:hover .line-elbow { opacity: 1; }
 
+        /* PRINT STYLES - Ensures PDF looks perfect */
         @media print {
             @page { size: landscape; margin: 10mm; }
             body, html { height: auto !important; overflow: visible !important; background: white !important; }
@@ -46,23 +54,24 @@
             #canvas { overflow: visible !important; height: auto !important; background-image: none !important; }
             .port, .line-hitbox, .line-elbow { display: none !important; }
             * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-            .lane { width: 1050px !important; }
         }
     </style>
 </head>
 <body>
 
 <div class="toolbar">
-    <button onclick="addLane()">+ Add Swimlane</button>
+    <button onclick="addLane()" style="border-color:#d13438; color:#d13438;">+ Add Swimlane</button>
     <button onclick="addShape('start', 'Start/End')">Start/End</button>
     <button onclick="addShape('process', 'Process')">Process</button>
     <button onclick="addShape('decision', '<span>Decision</span>')">Decision</button>
     <button onclick="addShape('data', 'Data')">Data</button>
-    <span style="font-size: 11px; color: #666; margin-left: 10px;">Drag blue dots to connect | Drag blue squares to bend | Double-click line to delete</span>
-    <button onclick="window.print()" style="margin-left:auto; background:#0078d4; color:white;">Export PDF</button>
+    <span style="font-size: 11px; color: #666; margin-left: 10px;">Drag blue dots to connect | Drag blue squares to bend | <b>Double-click line to delete</b></span>
+    <button onclick="window.print()" style="margin-left:auto; background: #0078d4; color:white;">Export PDF</button>
 </div>
 
-<div id="canvas"><svg id="svg-lines"></svg></div>
+<div id="canvas">
+    <svg id="svg-lines"></svg>
+</div>
 
 <script>
     let laneY = 20;
@@ -73,15 +82,20 @@
         div.className = 'shape ' + cssClass;
         
         if(cssClass === 'data') {
-            div.innerHTML = '<svg class="data-svg-container" viewBox="0 0 140 70" preserveAspectRatio="none"><polygon points="25,2 138,2 115,68 2,68" fill="white" stroke="#c43e1c" stroke-width="3" /></svg><div class="data-text">' + html + '</div>';
+            div.innerHTML = `
+                <svg class="data-svg-container" viewBox="0 0 140 70" preserveAspectRatio="none">
+                    <polygon points="25,2 138,2 115,68 2,68" fill="white" stroke="#c43e1c" stroke-width="3" />
+                </svg>
+                <div class="data-text">${html}</div>
+            `;
         } else {
             div.innerHTML = html;
         }
 
-        div.innerHTML += '<div class="port p-top"></div><div class="port p-bottom"></div><div class="port p-left"></div><div class="port p-right"></div>';
+        div.innerHTML += `<div class="port p-top"></div><div class="port p-bottom"></div><div class="port p-left"></div><div class="port p-right"></div>`;
         div.style.left = '150px'; div.style.top = '150px';
         
-        div.ondblclick = () => {
+        div.ondblclick = (e) => {
             const val = prompt("Rename:", div.innerText);
             if (val) {
                 if(cssClass === 'decision') div.querySelector('span').innerText = val;
@@ -106,7 +120,7 @@
         const lane = document.createElement('div');
         lane.className = 'lane';
         lane.style.top = laneY + 'px'; lane.style.left = '10px';
-        lane.innerHTML = '<span class="lane-label" onclick="this.innerText=prompt(\'Name:\',this.innerText)">DEPARTMENT NAME</span>';
+        lane.innerHTML = `<span class="lane-label" onclick="this.innerText=prompt('Name:',this.innerText)">DEPARTMENT NAME</span>`;
         document.getElementById('canvas').appendChild(lane);
         laneY += 240;
     }
@@ -152,7 +166,7 @@
             const y2 = r2.top + r2.height/2 - canvasR.top;
             const midY = conn.manualY !== null ? conn.manualY : (y1 + y2) / 2;
 
-            const pathStr = 'M ' + x1 + ' ' + y1 + ' L ' + x1 + ' ' + midY + ' L ' + x2 + ' ' + midY + ' L ' + x2 + ' ' + y2;
+            const pathStr = `M ${x1} ${y1} L ${x1} ${midY} L ${x2} ${midY} L ${x2} ${y2}`;
 
             const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
             path.setAttribute("d", pathStr);
@@ -183,7 +197,7 @@
             const x1 = r1.left + r1.width/2 - canvasR.left;
             const y1 = r1.top + r1.height/2 - canvasR.top;
             const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-            path.setAttribute("d", 'M ' + x1 + ' ' + y1 + ' L ' + (mX - canvasR.left) + ' ' + (mY - canvasR.top));
+            path.setAttribute("d", `M ${x1} ${y1} L ${mX - canvasR.left} ${mY - canvasR.top}`);
             path.setAttribute("class", "line-path");
             svg.appendChild(path);
         }
