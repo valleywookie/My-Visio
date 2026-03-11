@@ -29,6 +29,17 @@
         .line-hitbox { stroke: transparent; stroke-width: 15; fill: none; pointer-events: auto; cursor: pointer; }
         .line-elbow { fill: #0078d4; stroke: white; stroke-width: 2; cursor: ns-resize; pointer-events: auto; opacity: 0; }
         svg#svg-lines:hover .line-elbow { opacity: 1; }
+
+        /* --- PRINT STYLES FOR PDF EXPORT --- */
+        @media print {
+            @page { size: landscape; margin: 10mm; }
+            body, html { height: auto !important; overflow: visible !important; background: white !important; }
+            .toolbar { display: none !important; }
+            #canvas { overflow: visible !important; height: auto !important; background-image: none !important; }
+            .port, .line-hitbox, .line-elbow { display: none !important; } /* Hides blue squares and dots */
+            * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+            .lane { width: 1050px !important; /* Forces lanes to a fixed width to fit landscape paper */ }
+        }
     </style>
 </head>
 <body>
@@ -133,42 +144,4 @@
             const y2 = r2.top + r2.height/2 - canvasR.top;
             const midY = conn.manualY !== null ? conn.manualY : (y1 + y2) / 2;
 
-            const pathStr = 'M ' + x1 + ' ' + y1 + ' L ' + x1 + ' ' + midY + ' L ' + x2 + ' ' + midY + ' L ' + x2 + ' ' + y2;
-
-            const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-            path.setAttribute("d", pathStr);
-            path.setAttribute("class", "line-path");
-            path.ondblclick = () => { if(confirm("Delete line?")) { connections.splice(index, 1); drawLines(); } };
-            svg.appendChild(path);
-
-            const hitbox = document.createElementNS("http://www.w3.org/2000/svg", "path");
-            hitbox.setAttribute("d", pathStr);
-            hitbox.setAttribute("class", "line-hitbox");
-            hitbox.ondblclick = () => { if(confirm("Delete line?")) { connections.splice(index, 1); drawLines(); } };
-            svg.appendChild(hitbox);
-
-            const elbow = document.createElementNS("http://www.w3.org/2000/svg", "rect");
-            elbow.setAttribute("x", x1 - 6); elbow.setAttribute("y", midY - 6);
-            elbow.setAttribute("width", 12); elbow.setAttribute("height", 12);
-            elbow.setAttribute("class", "line-elbow");
-            elbow.onmousedown = (e) => {
-                e.stopPropagation();
-                document.onmousemove = (moveE) => { conn.manualY = moveE.clientY - canvasR.top; drawLines(); };
-                document.onmouseup = () => { document.onmousemove = null; };
-            };
-            svg.appendChild(elbow);
-        });
-
-        if (activeStart) {
-            const r1 = activeStart.getBoundingClientRect();
-            const x1 = r1.left + r1.width/2 - canvasR.left;
-            const y1 = r1.top + r1.height/2 - canvasR.top;
-            const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-            path.setAttribute("d", 'M ' + x1 + ' ' + y1 + ' L ' + (mX - canvasR.left) + ' ' + (mY - canvasR.top));
-            path.setAttribute("class", "line-path");
-            svg.appendChild(path);
-        }
-    }
-</script>
-</body>
-</html>
+            const pathStr = 'M ' + x1 + ' ' + y1
