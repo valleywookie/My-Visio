@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>My Visio Pro</title>
+    <title>My Visio Pro - Precision</title>
     <style>
         body { font-family: 'Segoe UI', sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; background: #f3f2f1; overflow: hidden; }
         .toolbar { background: white; padding: 12px; display: flex; gap: 10px; align-items: center; border-bottom: 1px solid #ccc; z-index: 1000; }
@@ -17,75 +17,11 @@
         .start { border-radius: 50px; border-color: #107c10; }
         .decision { width: 90px; height: 90px; transform: rotate(45deg); border-color: #6264a7; }
         .decision span { transform: rotate(-45deg); }
-        .data { clip-path: polygon(20% 0%, 100% 0%, 80% 100%, 0% 100%); border-color: #c43e1c; }
+        .data { clip-path: polygon(15% 0%, 100% 0%, 85% 100%, 0% 100%); border-color: #c43e1c; }
         .lane { position: absolute; width: 98%; height: 230px; border: 2px dashed #d13438; z-index: 1; pointer-events: none; }
         .lane-label { color: #d13438; font-weight: bold; pointer-events: auto; cursor: pointer; background: white; padding: 2px 5px; }
         .port { position: absolute; width: 12px; height: 12px; background: #0078d4; border-radius: 50%; opacity: 0; cursor: crosshair; z-index: 20; border: 2px solid white; }
         .shape:hover .port { opacity: 1; }
         .p-top { top: -8px; left: calc(50% - 6px); }
         .p-bottom { bottom: -8px; left: calc(50% - 6px); }
-        .p-left { left: -8px; top: calc(50% - 6px); }
-        .p-right { right: -8px; top: calc(50% - 6px); }
-        button { padding: 8px 15px; cursor: pointer; border: 1px solid #0078d4; background: white; color: #0078d4; font-weight: bold; border-radius: 4px; }
-        button:hover { background: #0078d4; color: white; }
-        svg { position: absolute; top: 0; left: 0; width: 5000px; height: 5000px; pointer-events: none; z-index: 5; }
-        .line-path { stroke: #444; stroke-width: 2; fill: none; pointer-events: auto; cursor: pointer; }
-    </style>
-</head>
-<body>
-
-<div class="toolbar">
-    <button onclick="addLane()" style="border-color:#d13438; color:#d13438;">+ Add Swimlane</button>
-    <button onclick="addShape('start', 'Start/End')">Process</button>
-    <button onclick="addShape('', 'Process')">Process</button>
-    <button onclick="addShape('decision', '<span>Decision</span>')">Decision</button>
-    <button onclick="addShape('data', 'Data')">Data</button>
-    <span style="font-size: 11px; color: #666; margin-left: 10px;">Drag blue dots to connect | Right-click shape/Double-click line to delete</span>
-    <button onclick="window.print()" style="margin-left:auto; background: #0078d4; color:white;">Export PDF</button>
-</div>
-
-<div id="canvas">
-    <svg id="svg-lines"></svg>
-</div>
-
-<script>
-    let laneY = 20;
-    let connections = [];
-
-    function addShape(cssClass, html) {
-        const div = document.createElement('div');
-        div.className = 'shape ' + cssClass;
-        div.innerHTML = html + `
-            <div class="port p-top"></div><div class="port p-bottom"></div>
-            <div class="port p-left"></div><div class="port p-right"></div>
-        `;
-        div.style.left = '150px'; div.style.top = '150px';
-        
-        div.ondblclick = (e) => {
-            const val = prompt("Rename:", div.innerText);
-            if (val) div.querySelector('span') ? div.querySelector('span').innerText = val : div.firstChild.textContent = val;
-        };
-
-        div.oncontextmenu = (e) => {
-            e.preventDefault();
-            if(confirm("Delete shape?")) {
-                connections = connections.filter(c => c.from !== div && c.to !== div);
-                div.remove(); drawLines();
-            }
-        };
-
-        makeDraggable(div);
-        document.getElementById('canvas').appendChild(div);
-    }
-
-    function addLane() {
-        const lane = document.createElement('div');
-        lane.className = 'lane';
-        lane.style.top = laneY + 'px'; lane.style.left = '10px';
-        lane.innerHTML = `<span class="lane-label" onclick="this.innerText=prompt('Name:',this.innerText)">DEPARTMENT NAME</span>`;
-        document.getElementById('canvas').appendChild(lane);
-        laneY += 240;
-    }
-
-    function makeDraggable(el) {
-        let p1 =
+        .p-left { left: -8px; top: calc(50
