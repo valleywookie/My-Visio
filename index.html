@@ -2,19 +2,18 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>My Visio Pro - Stable</title>
+    <title>My Visio Pro - Final Polish</title>
     <style>
         body { font-family: 'Segoe UI', sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; background: #f3f2f1; overflow: hidden; }
-        .toolbar { background: white; padding: 12px; display: flex; gap: 10px; border-bottom: 1px solid #ccc; z-index: 1000; }
+        .toolbar { background: white; padding: 12px; display: flex; gap: 10px; align-items: center; border-bottom: 1px solid #ccc; z-index: 1000; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
         #canvas { flex-grow: 1; position: relative; background: white; overflow: auto; background-image: radial-gradient(#d1d1d1 1px, transparent 1px); background-size: 20px 20px; }
         
         .shape { position: absolute; width: 140px; height: 70px; background: white; color: #333; display: flex; align-items: center; justify-content: center; font-weight: 600; cursor: move; user-select: none; text-align: center; font-size: 13px; z-index: 10; border: 3px solid; box-shadow: 2px 2px 5px rgba(0,0,0,0.1); }
         .process { border-color: #0078d4; }
         .start { border-color: #107c10; border-radius: 50px; }
         .decision { width: 90px; height: 90px; border-color: #6264a7; transform: rotate(45deg); }
-        .decision span { transform: rotate(-45deg); display: block; }
+        .decision span { transform: rotate(-45deg); display: block; width: 100%; }
 
-        /* Data Shape using SVG to prevent glitches */
         .data { border: none; background: transparent; box-shadow: none; }
         .data-svg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; }
 
@@ -32,7 +31,7 @@
         button:hover { background: #0078d4; color: white; }
         
         svg#svg-lines { position: absolute; top: 0; left: 0; width: 5000px; height: 5000px; pointer-events: none; z-index: 5; }
-        .line-path { stroke: #111; stroke-width: 3.5; fill: none; pointer-events: auto; }
+        .line-path { stroke: #222; stroke-width: 3.5; fill: none; pointer-events: auto; marker-end: url(#arrowhead); }
         .line-elbow { fill: #0078d4; stroke: white; stroke-width: 2; cursor: ns-resize; pointer-events: auto; opacity: 0; }
         svg:hover .line-elbow { opacity: 1; }
     </style>
@@ -40,15 +39,24 @@
 <body>
 
 <div class="toolbar">
-    <button onclick="addLane()">+ Add Swimlane</button>
+    <button onclick="addLane()" style="border-color:#d13438; color:#d13438;">+ Add Swimlane</button>
     <button onclick="addShape('start', 'Start/End')">Start/End</button>
     <button onclick="addShape('process', 'Process')">Process</button>
     <button onclick="addShape('decision', '<span>Decision</span>')">Decision</button>
     <button onclick="addShape('data', 'Data')">Data</button>
+    <span style="font-size: 11px; color: #666; margin-left: 10px;">Drag blue dots to connect | Drag <b>blue squares</b> to reroute | Double-click line to delete</span>
     <button onclick="window.print()" style="margin-left:auto; background: #0078d4; color:white;">Export PDF</button>
 </div>
 
-<div id="canvas"><svg id="svg-lines"></svg></div>
+<div id="canvas">
+    <svg id="svg-lines">
+        <defs>
+            <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+                <polygon points="0 0, 10 3.5, 0 7" fill="#222" />
+            </marker>
+        </defs>
+    </svg>
+</div>
 
 <script>
     let laneY = 20;
@@ -58,16 +66,16 @@
         const div = document.createElement('div');
         div.className = 'shape ' + cssClass;
         if(cssClass === 'data') {
-            div.innerHTML = `<svg class="data-svg" viewBox="0 0 140 70" preserveAspectRatio="none"><polygon points="25,3 137,3 115,67 3,67" fill="white" stroke="#c43e1c" stroke-width="3"/></svg><div>${html}</div>`;
+            div.innerHTML = `<svg class="data-svg" viewBox="0 0 140 70" preserveAspectRatio="none"><polygon points="25,3 137,3 115,67 3,67" fill="white" stroke="#c43e1c" stroke-width="3"/></svg><div style="z-index:11;">${html}</div>`;
         } else {
             div.innerHTML = html;
         }
         div.innerHTML += `<div class="port p-top"></div><div class="port p-bottom"></div><div class="port p-left"></div><div class="port p-right"></div>`;
         div.style.left = '150px'; div.style.top = '150px';
         
-        div.ondblclick = () => {
+        div.ondblclick = (e) => {
             const val = prompt("Rename:", div.innerText);
-            if (val) div.querySelector('span') ? div.querySelector('span').innerText = val : div.lastChild.innerText = val;
+            if (val) div.querySelector('span') ? div.querySelector('span').innerText = val : (div.querySelector('div') ? div.querySelector('div').innerText = val : div.firstChild.textContent = val);
         };
 
         div.oncontextmenu = (e) => {
@@ -109,4 +117,62 @@
     function startLine(e, startEl) {
         document.onmousemove = (moveE) => { drawLines(startEl, moveE.clientX, moveE.clientY); };
         document.onmouseup = (upE) => {
-            document.onmousemove = null
+            document.onmousemove = null; document.onmouseup = null;
+            const target = document.elementFromPoint(upE.clientX, upE.clientY);
+            const endEl = target ? target.closest('.shape') : null;
+            if (endEl && endEl !== startEl) { connections.push({ from: startEl, to: endEl, manualY: null }); }
+            drawLines();
+        };
+    }
+
+    function drawLines(activeStart = null, mX = 0, mY = 0) {
+        const svg = document.getElementById('svg-lines');
+        // Keep the defs block
+        const defs = svg.querySelector('defs');
+        svg.innerHTML = '';
+        svg.appendChild(defs);
+        
+        const canvasR = document.getElementById('canvas').getBoundingClientRect();
+
+        connections.forEach((conn, index) => {
+            const r1 = conn.from.getBoundingClientRect();
+            const r2 = conn.to.getBoundingClientRect();
+            const x1 = r1.left + r1.width/2 - canvasR.left;
+            const y1 = r1.top + r1.height/2 - canvasR.top;
+            const x2 = r2.left + r2.width/2 - canvasR.left;
+            const y2 = r2.top + r2.height/2 - canvasR.top;
+            const midY = conn.manualY !== null ? conn.manualY : (y1 + y2) / 2;
+
+            const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+            path.setAttribute("d", `M ${x1} ${y1} L ${x1} ${midY} L ${x2} ${midY} L ${x2} ${y2}`);
+            path.setAttribute("class", "line-path");
+            path.ondblclick = () => { if(confirm("Delete line?")) { connections.splice(index, 1); drawLines(); } };
+            svg.appendChild(path);
+
+            const elbow = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+            elbow.setAttribute("x", x1 - 7); elbow.setAttribute("y", midY - 7);
+            elbow.setAttribute("width", 14); elbow.setAttribute("height", 14);
+            elbow.setAttribute("class", "line-elbow");
+            elbow.onmousedown = (e) => {
+                e.stopPropagation();
+                document.onmousemove = (moveE) => { conn.manualY = moveE.clientY - canvasR.top; drawLines(); };
+                document.onmouseup = () => { document.onmousemove = null; };
+            };
+            svg.appendChild(elbow);
+        });
+
+        if (activeStart) {
+            const r1 = activeStart.getBoundingClientRect();
+            const x1 = r1.left + r1.width/2 - canvasR.left;
+            const y1 = r1.top + r1.height/2 - canvasR.top;
+            const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+            path.setAttribute("d", `M ${x1} ${y1} L ${mX - canvasR.left} ${mY - canvasR.top}`);
+            path.setAttribute("stroke", "#222");
+            path.setAttribute("stroke-width", "2");
+            path.setAttribute("fill", "none");
+            svg.appendChild(path);
+        }
+    }
+</script>
+</body>
+</html>
