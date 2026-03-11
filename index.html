@@ -2,10 +2,10 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>My Visio Pro - Clean Lines</title>
+    <title>My Visio Pro - Stable Build</title>
     <style>
         body { font-family: 'Segoe UI', sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; background: #f3f2f1; overflow: hidden; }
-        .toolbar { background: white; padding: 12px; display: flex; gap: 10px; align-items: center; border-bottom: 1px solid #ccc; z-index: 1000; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        .toolbar { background: white; padding: 12px; display: flex; gap: 10px; border-bottom: 1px solid #ccc; z-index: 1000; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
         #canvas { flex-grow: 1; position: relative; background: white; overflow: auto; background-image: radial-gradient(#d1d1d1 1px, transparent 1px); background-size: 20px 20px; }
         
         .shape { position: absolute; width: 140px; height: 70px; background: white; color: #333; display: flex; align-items: center; justify-content: center; font-weight: 600; cursor: move; user-select: none; text-align: center; font-size: 13px; z-index: 10; border: 3.5px solid; }
@@ -25,55 +25,4 @@
         .p-top { top: -9px; left: calc(50% - 7px); }
         .p-bottom { bottom: -9px; left: calc(50% - 7px); }
         .p-left { left: -9px; top: calc(50% - 7px); }
-        .p-right { right: -9px; top: calc(50% - 7px); }
-
-        button { padding: 8px 15px; cursor: pointer; border: 1px solid #0078d4; background: white; color: #0078d4; font-weight: bold; border-radius: 4px; }
-        button:hover { background: #0078d4; color: white; }
-        
-        svg#svg-lines { position: absolute; top: 0; left: 0; width: 5000px; height: 5000px; pointer-events: none; z-index: 5; }
-        .line-path { stroke: #222; stroke-width: 3.5; fill: none; pointer-events: auto; marker-end: url(#arrow); }
-        .line-hitbox { stroke: transparent; stroke-width: 15; fill: none; pointer-events: auto; cursor: pointer; }
-        .line-elbow { fill: #0078d4; stroke: white; stroke-width: 2; cursor: ns-resize; pointer-events: auto; opacity: 0; }
-        svg:hover .line-elbow { opacity: 1; }
-    </style>
-</head>
-<body>
-
-<div class="toolbar">
-    <button onclick="addLane()" style="border-color:#d13438; color:#d13438;">+ Add Swimlane</button>
-    <button onclick="addShape('start', 'Start/End')">Start/End</button>
-    <button onclick="addShape('process', 'Process')">Process</button>
-    <button onclick="addShape('decision', '<span>Decision</span>')">Decision</button>
-    <button onclick="addShape('data', 'Data')">Data</button>
-    <button onclick="window.print()" style="margin-left:auto; background: #0078d4; color:white;">Export PDF</button>
-</div>
-
-<div id="canvas">
-    <svg id="svg-lines">
-        <defs>
-            <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-              <path d="M 0 0 L 10 5 L 0 10 z" fill="#222" />
-            </marker>
-        </defs>
-    </svg>
-</div>
-
-<script>
-    let laneY = 20;
-    let connections = [];
-
-    function addShape(cssClass, html) {
-        const div = document.createElement('div');
-        div.className = 'shape ' + cssClass;
-        if(cssClass === 'data') {
-            div.innerHTML = `<svg class="data-svg" viewBox="0 0 140 70" preserveAspectRatio="none"><polygon points="25,3 137,3 115,67 3,67" fill="white" stroke="#c43e1c" stroke-width="4"/></svg><div style="z-index:11;">${html}</div>`;
-        } else {
-            div.innerHTML = html;
-        }
-        div.innerHTML += `<div class="port p-top"></div><div class="port p-bottom"></div><div class="port p-left"></div><div class="port p-right"></div>`;
-        div.style.left = '100px'; div.style.top = '100px';
-        
-        div.ondblclick = (e) => {
-            const val = prompt("Rename:", div.innerText);
-            if (val) {
-                const target = div.querySelector('span') || div
+        .p-right {
