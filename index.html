@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>My Visio Pro - Precision</title>
+    <title>Visio Pro - FailSafe</title>
     <style>
         body { font-family: 'Segoe UI', sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; background: #f3f2f1; overflow: hidden; }
-        .toolbar { background: white; padding: 12px; display: flex; gap: 10px; align-items: center; border-bottom: 1px solid #ccc; z-index: 1000; }
+        .toolbar { background: white; padding: 10px; display: flex; gap: 8px; align-items: center; border-bottom: 1px solid #ccc; z-index: 1000; }
         #canvas { flex-grow: 1; position: relative; background: white; overflow: auto; background-image: radial-gradient(#d1d1d1 1px, transparent 1px); background-size: 20px 20px; }
         .shape { 
             position: absolute; width: 140px; height: 70px; 
@@ -26,145 +26,21 @@
         .p-bottom { bottom: -8px; left: calc(50% - 6px); }
         .p-left { left: -8px; top: calc(50% - 6px); }
         .p-right { right: -8px; top: calc(50% - 6px); }
-        button { padding: 8px 15px; cursor: pointer; border: 1px solid #0078d4; background: white; color: #0078d4; font-weight: bold; border-radius: 4px; }
+        button { padding: 8px 12px; cursor: pointer; border: 1px solid #0078d4; background: white; color: #0078d4; font-weight: bold; border-radius: 4px; }
         button:hover { background: #0078d4; color: white; }
         svg { position: absolute; top: 0; left: 0; width: 5000px; height: 5000px; pointer-events: none; z-index: 5; }
-        .line-path { stroke: #444; stroke-width: 2; fill: none; pointer-events: auto; cursor: pointer; }
-        .line-hitbox { stroke: transparent; stroke-width: 10; fill: none; pointer-events: auto; cursor: ns-resize; }
+        .line-path { stroke: #444; stroke-width: 2; fill: none; pointer-events: auto; }
+        .line-elbow { fill: #0078d4; stroke: white; stroke-width: 2; cursor: ns-resize; pointer-events: auto; opacity: 0; transition: opacity 0.2s; }
+        svg:hover .line-elbow { opacity: 1; }
     </style>
 </head>
 <body>
 
 <div class="toolbar">
-    <button onclick="addLane()" style="border-color:#d13438; color:#d13438;">+ Add Swimlane</button>
+    <button onclick="addLane()">+ Add Swimlane</button>
     <button onclick="addShape('start', 'Start/End')">Start/End</button>
     <button onclick="addShape('', 'Process')">Process</button>
     <button onclick="addShape('decision', '<span>Decision</span>')">Decision</button>
     <button onclick="addShape('data', 'Data')">Data</button>
-    <span style="font-size: 11px; color: #666; margin-left: 10px;">Drag blue dots to connect | <b>Drag horizontal lines</b> to bend them | Right-click shape to delete</span>
-    <button onclick="window.print()" style="margin-left:auto; background: #0078d4; color:white;">Export PDF</button>
-</div>
-
-<div id="canvas">
-    <svg id="svg-lines"></svg>
-</div>
-
-<script>
-    let laneY = 20;
-    let connections = [];
-
-    function addShape(cssClass, html) {
-        const div = document.createElement('div');
-        div.className = 'shape ' + cssClass;
-        div.innerHTML = html + `<div class="port p-top"></div><div class="port p-bottom"></div><div class="port p-left"></div><div class="port p-right"></div>`;
-        div.style.left = '150px'; div.style.top = '150px';
-        
-        div.ondblclick = (e) => {
-            const val = prompt("Rename:", div.innerText);
-            if (val) div.querySelector('span') ? div.querySelector('span').innerText = val : div.firstChild.textContent = val;
-        };
-
-        div.oncontextmenu = (e) => {
-            e.preventDefault();
-            if(confirm("Delete shape?")) {
-                connections = connections.filter(c => c.from !== div && c.to !== div);
-                div.remove(); drawLines();
-            }
-        };
-
-        makeDraggable(div);
-        document.getElementById('canvas').appendChild(div);
-    }
-
-    function addLane() {
-        const lane = document.createElement('div');
-        lane.className = 'lane';
-        lane.style.top = laneY + 'px'; lane.style.left = '10px';
-        lane.innerHTML = `<span class="lane-label" onclick="this.innerText=prompt('Name:',this.innerText)">DEPARTMENT NAME</span>`;
-        document.getElementById('canvas').appendChild(lane);
-        laneY += 240;
-    }
-
-    function makeDraggable(el) {
-        let p1 = 0, p2 = 0, p3 = 0, p4 = 0;
-        el.onmousedown = function(e) {
-            if (e.target.classList.contains('port')) { startLine(e, el); return; }
-            p3 = e.clientX; p4 = e.clientY;
-            document.onmousemove = function(e) {
-                p1 = p3 - e.clientX; p2 = p4 - e.clientY;
-                p3 = e.clientX; p4 = e.clientY;
-                el.style.top = (el.offsetTop - p2) + "px";
-                el.style.left = (el.offsetLeft - p1) + "px";
-                drawLines();
-            };
-            document.onmouseup = () => { document.onmousemove = null; };
-        };
-    }
-
-    function startLine(e, startEl) {
-        document.onmousemove = (moveE) => { drawLines(startEl, moveE.clientX, moveE.clientY); };
-        document.onmouseup = (upE) => {
-            document.onmousemove = null; document.onmouseup = null;
-            const target = document.elementFromPoint(upE.clientX, upE.clientY);
-            const endEl = target ? target.closest('.shape') : null;
-            if (endEl && endEl !== startEl) { 
-                connections.push({ from: startEl, to: endEl, midYOffset: 0 }); 
-            }
-            drawLines();
-        };
-    }
-
-    function drawLines(activeStart = null, mX = 0, mY = 0) {
-        const svg = document.getElementById('svg-lines');
-        svg.innerHTML = '';
-        const canvasR = document.getElementById('canvas').getBoundingClientRect();
-
-        connections.forEach((conn, index) => {
-            const r1 = conn.from.getBoundingClientRect();
-            const r2 = conn.to.getBoundingClientRect();
-            
-            const x1 = r1.left + r1.width/2 - canvasR.left;
-            const y1 = r1.top + r1.height/2 - canvasR.top;
-            const x2 = r2.left + r2.width/2 - canvasR.left;
-            const y2 = r2.top + r2.height/2 - canvasR.top;
-
-            const midY = ((y1 + y2) / 2) + (conn.midYOffset || 0);
-
-            const pathStr = `M ${x1} ${y1} L ${x1} ${midY} L ${x2} ${midY} L ${x2} ${y2}`;
-            
-            const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-            path.setAttribute("d", pathStr);
-            path.setAttribute("class", "line-path");
-            svg.appendChild(path);
-
-            // Add a "Hitbox" line that's easier to grab to move the midpoint
-            const hitbox = document.createElementNS("http://www.w3.org/2000/svg", "path");
-            hitbox.setAttribute("d", `M ${x1} ${midY} L ${x2} ${midY}`);
-            hitbox.setAttribute("class", "line-hitbox");
-            
-            hitbox.onmousedown = (e) => {
-                e.stopPropagation();
-                const startY = e.clientY;
-                const startOffset = conn.midYOffset || 0;
-                document.onmousemove = (moveE) => {
-                    conn.midYOffset = startOffset + (moveE.clientY - startY);
-                    drawLines();
-                };
-                document.onmouseup = () => { document.onmousemove = null; };
-            };
-            svg.appendChild(hitbox);
-        });
-
-        if (activeStart) {
-            const r1 = activeStart.getBoundingClientRect();
-            const x1 = r1.left + r1.width/2 - canvasR.left;
-            const y1 = r1.top + r1.height/2 - canvasR.top;
-            const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-            path.setAttribute("d", `M ${x1} ${y1} L ${mX - canvasR.left} ${mY - canvasR.top}`);
-            path.setAttribute("class", "line-path");
-            svg.appendChild(path);
-        }
-    }
-</script>
-</body>
-</html>
+    <span style="font-size: 11px; color: #666; margin-left: 10px;">Drag blue dots to connect | Drag blue squares to bend lines</span>
+    <button onclick="window.
