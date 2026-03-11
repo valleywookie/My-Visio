@@ -3,33 +3,20 @@
 <head>
     <title>Visio Mimic Pro</title>
     <style>
-        body { font-family: 'Segoe UI', sans-serif; background: #f3f2f1; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
-        .toolbar { background: white; padding: 12px; display: flex; gap: 10px; align-items: center; border-bottom: 1px solid #ccc; z-index: 1000; }
-        #canvas { position: relative; flex-grow: 1; background: white; overflow: auto; background-image: radial-gradient(#d1d1d1 1px, transparent 1px); background-size: 20px 20px; }
+        body { font-family: sans-serif; margin: 0; background: #f3f2f1; display: flex; flex-direction: column; height: 100vh; }
+        .toolbar { background: white; padding: 10px; border-bottom: 1px solid #ccc; display: flex; gap: 10px; }
+        #canvas { flex-grow: 1; position: relative; background: white; overflow: hidden; background-image: radial-gradient(#d1d1d1 1px, transparent 1px); background-size: 20px 20px; }
         .shape { 
             position: absolute; width: 140px; height: 70px; 
-            border: 2px solid #0078d4; background: #fff; color: #333;
+            border: 2px solid #0078d4; background: white; color: #333;
             display: flex; align-items: center; justify-content: center;
-            font-weight: 600; cursor: move; user-select: none;
-            text-align: center; font-size: 13px; z-index: 10;
-            box-shadow: 2px 2px 5px rgba(0,0,0,0.1);
+            font-weight: bold; cursor: move; text-align: center; z-index: 10;
         }
-        .start { border-radius: 50px; border-color: #107c10; }
-        .decision { width: 90px; height: 90px; transform: rotate(45deg); border-color: #6264a7; }
-        .decision span { transform: rotate(-45deg); }
-        .lane { position: absolute; width: 95%; height: 230px; border: 2px dashed #d13438; z-index: 1; pointer-events: none; }
-        .lane-label { color: #d13438; font-weight: bold; pointer-events: auto; cursor: pointer; background: white; padding: 2px 5px; }
-        .port { position: absolute; width: 12px; height: 12px; background: #0078d4; border-radius: 50%; opacity: 0; cursor: crosshair; z-index: 20; border: 2px solid white; }
-        .shape:hover .port { opacity: 1; }
-        .p-top { top: -8px; left: calc(50% - 6px); }
-        .p-bottom { bottom: -8px; left: calc(50% - 6px); }
-        .p-left { left: -8px; top: calc(50% - 6px); }
-        .p-right { right: -8px; top: calc(50% - 6px); }
-        button { padding: 8px 15px; cursor: pointer; border: 1px solid #0078d4; background: white; color: #0078d4; font-weight: bold; border-radius: 4px; }
-        button:hover { background: #0078d4; color: white; }
-        svg { position: absolute; top: 0; left: 0; width: 5000px; height: 5000px; pointer-events: none; z-index: 5; }
-        .line-path { stroke: #444; stroke-width: 2; fill: none; pointer-events: auto; cursor: pointer; }
-        .line-path:hover { stroke: red; stroke-width: 4; }
+        .start { border-radius: 50px; border-color: green; }
+        .lane { position: absolute; width: 95%; height: 200px; border: 2px dashed red; z-index: 1; pointer-events: none; }
+        .lane-label { pointer-events: auto; color: red; font-weight: bold; cursor: pointer; padding: 5px; }
+        button { padding: 8px 12px; cursor: pointer; background: white; border: 1px solid #0078d4; color: #0078d4; font-weight: bold; }
+        svg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 5; }
     </style>
 </head>
 <body>
@@ -37,50 +24,41 @@
 <div class="toolbar">
     <button onclick="addShape('start', 'Start/End')">+ Start/End</button>
     <button onclick="addShape('', 'Process')">+ Process</button>
-    <button onclick="addShape('decision', '<span>Decision</span>')">+ Decision</button>
     <button onclick="addLane()">+ Add Swimlane</button>
-    <span style="font-size: 11px; color: #666; margin-left: 10px;">Drag blue dots to connect | Double-click line/shape to delete | Double-click text to rename</span>
-    <button onclick="window.print()" style="margin-left:auto; background: #0078d4; color:white;">Export PDF</button>
+    <button onclick="window.print()" style="margin-left:auto;">Save PDF</button>
 </div>
 
-<div id="canvas" id="canvas-area">
-    <svg id="svg-lines"></svg>
+<div id="canvas">
+    <svg id="svg-canvas"></svg>
 </div>
 
 <script>
     let laneY = 20;
-    let connections = [];
-
-    function addShape(cssClass, html) {
-        const div = document.createElement('div');
-        div.className = 'shape ' + cssClass;
-        div.innerHTML = html + `
-            <div class="port p-top"></div>
-            <div class="port p-bottom"></div>
-            <div class="port p-left"></div>
-            <div class="port p-right"></div>
-        `;
-        div.style.left = '150px';
-        div.style.top = '100px';
+    
+    function addShape(type, txt) {
+        const el = document.createElement('div');
+        el.className = 'shape ' + type;
+        el.innerText = txt;
+        el.style.left = '100px';
+        el.style.top = '100px';
         
-        div.ondblclick = (e) => {
-            if (e.target.classList.contains('port')) return;
-            const val = prompt("Rename:", div.innerText);
-            if (val) div.querySelector('span') ? div.querySelector('span').innerText = val : div.firstChild.textContent = val;
+        // Simple Drag
+        el.onmousedown = function(e) {
+            let shiftX = e.clientX - el.getBoundingClientRect().left;
+            let shiftY = e.clientY - el.getBoundingClientRect().top;
+            document.onmousemove = function(e) {
+                el.style.left = e.pageX - shiftX + 'px';
+                el.style.top = e.pageY - shiftY + 'px';
+            };
+            document.onmouseup = function() { document.onmousemove = null; };
+        };
+        
+        el.ondblclick = function() {
+            let n = prompt("Text:", this.innerText);
+            if(n) this.innerText = n;
         };
 
-        // Right-click to delete
-        div.oncontextmenu = (e) => {
-            e.preventDefault();
-            if(confirm("Delete this shape?")) {
-                connections = connections.filter(c => c.from !== div && c.to !== div);
-                div.remove();
-                drawLines();
-            }
-        };
-
-        makeDraggable(div);
-        document.getElementById('canvas').appendChild(div);
+        document.getElementById('canvas').appendChild(el);
     }
 
     function addLane() {
@@ -88,63 +66,10 @@
         lane.className = 'lane';
         lane.style.top = laneY + 'px';
         lane.style.left = '20px';
-        lane.innerHTML = `<span class="lane-label" onclick="this.innerText=prompt('Name:',this.innerText)">DEPARTMENT NAME</span>`;
+        lane.innerHTML = `<div class="lane-label" onclick="this.innerText=prompt('Name:',this.innerText)">DEPARTMENT</div>`;
         document.getElementById('canvas').appendChild(lane);
-        laneY += 250;
+        laneY += 220;
     }
-
-    function makeDraggable(el) {
-        let p1 = 0, p2 = 0, p3 = 0, p4 = 0;
-        
-        el.onmousedown = function(e) {
-            if (e.target.classList.contains('port')) {
-                startLine(e, el);
-                return;
-            }
-            p3 = e.clientX; p4 = e.clientY;
-            document.onmousemove = function(e) {
-                p1 = p3 - e.clientX; p2 = p4 - e.clientY;
-                p3 = e.clientX; p4 = e.clientY;
-                el.style.top = (el.offsetTop - p2) + "px";
-                el.style.left = (el.offsetLeft - p1) + "px";
-                drawLines();
-            };
-            document.onmouseup = () => { document.onmousemove = null; };
-        };
-    }
-
-    function startLine(e, startEl) {
-        document.onmousemove = (moveE) => {
-            drawLines(startEl, moveE.clientX, moveE.clientY);
-        };
-        document.onmouseup = (upE) => {
-            document.onmousemove = null;
-            document.onmouseup = null;
-            const target = document.elementFromPoint(upE.clientX, upE.clientY);
-            const endEl = target ? target.closest('.shape') : null;
-            if (endEl && endEl !== startEl) {
-                connections.push({ from: startEl, to: endEl });
-            }
-            drawLines();
-        };
-    }
-
-    function drawLines(activeStart = null, mX = 0, mY = 0) {
-        const svg = document.getElementById('svg-lines');
-        svg.innerHTML = '';
-        const canvasR = document.getElementById('canvas').getBoundingClientRect();
-
-        connections.forEach((conn, index) => {
-            const r1 = conn.from.getBoundingClientRect();
-            const r2 = conn.to.getBoundingClientRect();
-            renderPath(svg, r1, r2, canvasR, index);
-        });
-
-        if (activeStart) {
-            const r1 = activeStart.getBoundingClientRect();
-            const x1 = r1.left + r1.width/2 - canvasR.left;
-            const y1 = r1.top + r1.height/2 - canvasR.top;
-            const x2 = mX - canvasR.left;
-            const y2 = mY - canvasR.top;
-            const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-            path.setAttribute("d", `M ${x1} ${y1} L ${x1} ${(y1+y2)/2} L ${x2} ${(y1+y2)/2} L ${x2
+</script>
+</body>
+</html>
