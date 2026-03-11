@@ -1,35 +1,51 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Visio Pro - FailSafe</title>
+    <title>Visio Pro - Precision Build</title>
     <style>
         body { font-family: 'Segoe UI', sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; background: #f3f2f1; overflow: hidden; }
-        .toolbar { background: white; padding: 10px; display: flex; gap: 8px; align-items: center; border-bottom: 1px solid #ccc; z-index: 1000; }
+        .toolbar { background: white; padding: 12px; display: flex; gap: 10px; align-items: center; border-bottom: 1px solid #ccc; z-index: 1000; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
         #canvas { flex-grow: 1; position: relative; background: white; overflow: auto; background-image: radial-gradient(#d1d1d1 1px, transparent 1px); background-size: 20px 20px; }
+        
+        /* Base Shape Style */
         .shape { 
             position: absolute; width: 140px; height: 70px; 
-            border: 2px solid #0078d4; background: white; color: #333;
+            background: white; color: #333;
             display: flex; align-items: center; justify-content: center;
             font-weight: 600; cursor: move; user-select: none;
             text-align: center; font-size: 13px; z-index: 10;
-            box-shadow: 2px 2px 5px rgba(0,0,0,0.1);
         }
-        .start { border-radius: 50px; border-color: #107c10; }
-        .decision { width: 90px; height: 90px; transform: rotate(45deg); border-color: #6264a7; }
-        .decision span { transform: rotate(-45deg); }
-        .data { clip-path: polygon(15% 0%, 100% 0%, 85% 100%, 0% 100%); border-color: #c43e1c; }
+        
+        /* Shape Varieties */
+        .process { border: 2.5px solid #0078d4; box-shadow: 2px 2px 5px rgba(0,0,0,0.1); }
+        .start { border: 2.5px solid #107c10; border-radius: 50px; }
+        
+        .decision { width: 90px; height: 90px; border: 2.5px solid #6264a7; transform: rotate(45deg); background: white; }
+        .decision span { transform: rotate(-45deg); display: block; }
+
+        /* The Data Shape SVG Container */
+        .data-svg-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; }
+        .data-text { z-index: 11; width: 100%; pointer-events: none; }
+
+        /* Swimlane Style */
         .lane { position: absolute; width: 98%; height: 230px; border: 2px dashed #d13438; z-index: 1; pointer-events: none; }
-        .lane-label { color: #d13438; font-weight: bold; pointer-events: auto; cursor: pointer; background: white; padding: 2px 5px; }
-        .port { position: absolute; width: 12px; height: 12px; background: #0078d4; border-radius: 50%; opacity: 0; cursor: crosshair; z-index: 20; border: 2px solid white; }
+        .lane-label { color: #d13438; font-weight: bold; pointer-events: auto; cursor: pointer; background: white; padding: 2px 8px; font-size: 14px; }
+
+        /* Connection Ports */
+        .port { position: absolute; width: 14px; height: 14px; background: #0078d4; border-radius: 50%; opacity: 0; cursor: crosshair; z-index: 20; border: 2px solid white; box-shadow: 0 0 4px rgba(0,0,0,0.3); }
         .shape:hover .port { opacity: 1; }
-        .p-top { top: -8px; left: calc(50% - 6px); }
-        .p-bottom { bottom: -8px; left: calc(50% - 6px); }
-        .p-left { left: -8px; top: calc(50% - 6px); }
-        .p-right { right: -8px; top: calc(50% - 6px); }
-        button { padding: 8px 12px; cursor: pointer; border: 1px solid #0078d4; background: white; color: #0078d4; font-weight: bold; border-radius: 4px; }
+        .p-top { top: -9px; left: calc(50% - 7px); }
+        .p-bottom { bottom: -9px; left: calc(50% - 7px); }
+        .p-left { left: -9px; top: calc(50% - 7px); }
+        .p-right { right: -9px; top: calc(50% - 7px); }
+
+        /* Buttons */
+        button { padding: 8px 15px; cursor: pointer; border: 1px solid #0078d4; background: white; color: #0078d4; font-weight: bold; border-radius: 4px; }
         button:hover { background: #0078d4; color: white; }
-        svg { position: absolute; top: 0; left: 0; width: 5000px; height: 5000px; pointer-events: none; z-index: 5; }
-        .line-path { stroke: #444; stroke-width: 2; fill: none; pointer-events: auto; }
+        
+        /* SVG Lines */
+        svg#svg-lines { position: absolute; top: 0; left: 0; width: 5000px; height: 5000px; pointer-events: none; z-index: 5; }
+        .line-path { stroke: #222; stroke-width: 3; fill: none; pointer-events: auto; }
         .line-elbow { fill: #0078d4; stroke: white; stroke-width: 2; cursor: ns-resize; pointer-events: auto; opacity: 0; transition: opacity 0.2s; }
         svg:hover .line-elbow { opacity: 1; }
     </style>
@@ -37,10 +53,141 @@
 <body>
 
 <div class="toolbar">
-    <button onclick="addLane()">+ Add Swimlane</button>
+    <button onclick="addLane()" style="border-color:#d13438; color:#d13438;">+ Add Swimlane</button>
     <button onclick="addShape('start', 'Start/End')">Start/End</button>
-    <button onclick="addShape('', 'Process')">Process</button>
+    <button onclick="addShape('process', 'Process')">Process</button>
     <button onclick="addShape('decision', '<span>Decision</span>')">Decision</button>
     <button onclick="addShape('data', 'Data')">Data</button>
-    <span style="font-size: 11px; color: #666; margin-left: 10px;">Drag blue dots to connect | Drag blue squares to bend lines</span>
-    <button onclick="window.
+    <span style="font-size: 11px; color: #666; margin-left: 10px;">Drag blue dots to connect | Drag <b>blue squares</b> to reroute lines</span>
+    <button onclick="window.print()" style="margin-left:auto; background: #0078d4; color:white;">Export PDF</button>
+</div>
+
+<div id="canvas">
+    <svg id="svg-lines"></svg>
+</div>
+
+<script>
+    let laneY = 20;
+    let connections = [];
+
+    function addShape(cssClass, html) {
+        const div = document.createElement('div');
+        div.className = 'shape ' + cssClass;
+        
+        // Handling Data shape differently to ensure borders look perfect
+        if(cssClass === 'data') {
+            div.innerHTML = `
+                <svg class="data-svg-container" viewBox="0 0 140 70" preserveAspectRatio="none">
+                    <polygon points="25,2 138,2 115,68 2,68" fill="white" stroke="#c43e1c" stroke-width="3" />
+                </svg>
+                <div class="data-text">${html}</div>
+            `;
+        } else {
+            div.innerHTML = html;
+        }
+
+        // Add common ports
+        div.innerHTML += `<div class="port p-top"></div><div class="port p-bottom"></div><div class="port p-left"></div><div class="port p-right"></div>`;
+        div.style.left = '150px'; div.style.top = '150px';
+        
+        div.ondblclick = (e) => {
+            const val = prompt("Rename:", div.innerText);
+            if (val) {
+                if(cssClass === 'decision') div.querySelector('span').innerText = val;
+                else if(cssClass === 'data') div.querySelector('.data-text').innerText = val;
+                else div.firstChild.textContent = val;
+            }
+        };
+
+        div.oncontextmenu = (e) => {
+            e.preventDefault();
+            if(confirm("Delete shape?")) {
+                connections = connections.filter(c => c.from !== div && c.to !== div);
+                div.remove(); drawLines();
+            }
+        };
+
+        makeDraggable(div);
+        document.getElementById('canvas').appendChild(div);
+    }
+
+    function addLane() {
+        const lane = document.createElement('div');
+        lane.className = 'lane';
+        lane.style.top = laneY + 'px'; lane.style.left = '10px';
+        lane.innerHTML = `<span class="lane-label" onclick="this.innerText=prompt('Name:',this.innerText)">DEPARTMENT NAME</span>`;
+        document.getElementById('canvas').appendChild(lane);
+        laneY += 240;
+    }
+
+    function makeDraggable(el) {
+        let p1 = 0, p2 = 0, p3 = 0, p4 = 0;
+        el.onmousedown = function(e) {
+            if (e.target.classList.contains('port')) { startLine(e, el); return; }
+            p3 = e.clientX; p4 = e.clientY;
+            document.onmousemove = function(e) {
+                p1 = p3 - e.clientX; p2 = p4 - e.clientY;
+                p3 = e.clientX; p4 = e.clientY;
+                el.style.top = (el.offsetTop - p2) + "px";
+                el.style.left = (el.offsetLeft - p1) + "px";
+                drawLines();
+            };
+            document.onmouseup = () => { document.onmousemove = null; };
+        };
+    }
+
+    function startLine(e, startEl) {
+        document.onmousemove = (moveE) => { drawLines(startEl, moveE.clientX, moveE.clientY); };
+        document.onmouseup = (upE) => {
+            document.onmousemove = null; document.onmouseup = null;
+            const target = document.elementFromPoint(upE.clientX, upE.clientY);
+            const endEl = target ? target.closest('.shape') : null;
+            if (endEl && endEl !== startEl) { connections.push({ from: startEl, to: endEl, manualY: null }); }
+            drawLines();
+        };
+    }
+
+    function drawLines(activeStart = null, mX = 0, mY = 0) {
+        const svg = document.getElementById('svg-lines');
+        svg.innerHTML = '';
+        const canvasR = document.getElementById('canvas').getBoundingClientRect();
+
+        connections.forEach((conn, index) => {
+            const r1 = conn.from.getBoundingClientRect();
+            const r2 = conn.to.getBoundingClientRect();
+            const x1 = r1.left + r1.width/2 - canvasR.left;
+            const y1 = r1.top + r1.height/2 - canvasR.top;
+            const x2 = r2.left + r2.width/2 - canvasR.left;
+            const y2 = r2.top + r2.height/2 - canvasR.top;
+            const midY = conn.manualY !== null ? conn.manualY : (y1 + y2) / 2;
+
+            const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+            path.setAttribute("d", `M ${x1} ${y1} L ${x1} ${midY} L ${x2} ${midY} L ${x2} ${y2}`);
+            path.setAttribute("class", "line-path");
+            svg.appendChild(path);
+
+            const elbow = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+            elbow.setAttribute("x", x1 - 6); elbow.setAttribute("y", midY - 6);
+            elbow.setAttribute("width", 12); elbow.setAttribute("height", 12);
+            elbow.setAttribute("class", "line-elbow");
+            elbow.onmousedown = (e) => {
+                e.stopPropagation();
+                document.onmousemove = (moveE) => { conn.manualY = moveE.clientY - canvasR.top; drawLines(); };
+                document.onmouseup = () => { document.onmousemove = null; };
+            };
+            svg.appendChild(elbow);
+        });
+
+        if (activeStart) {
+            const r1 = activeStart.getBoundingClientRect();
+            const x1 = r1.left + r1.width/2 - canvasR.left;
+            const y1 = r1.top + r1.height/2 - canvasR.top;
+            const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+            path.setAttribute("d", `M ${x1} ${y1} L ${mX - canvasR.left} ${mY - canvasR.top}`);
+            path.setAttribute("class", "line-path");
+            svg.appendChild(path);
+        }
+    }
+</script>
+</body>
+</html>
