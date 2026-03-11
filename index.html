@@ -10,7 +10,6 @@
         button:hover { background: #0078d4; color: white; }
         .btn-lane { background: #fff1f0; border-color: #d13438; color: #d13438; }
         .btn-pdf { background: #0078d4; color: white; margin-left: auto; }
-        /* Hide ports by default, show on hover */
         .joint-port { opacity: 0; transition: opacity 0.2s; }
         .joint-cell:hover .joint-port { opacity: 1; }
     </style>
@@ -44,8 +43,15 @@
         gridSize: 10,
         drawGrid: { name: 'dot', color: '#e0e0e0' },
         defaultLink: () => new joint.shapes.standard.Link({
-            router: { name: 'manhattan', args: { padding: 25, excludeTypes: ['standard.Rectangle'] } },
-            connector: { name: 'jumpover' }, // Lines will "jump" over each other
+            router: { 
+                name: 'manhattan', 
+                args: { 
+                    step: 10,
+                    padding: 25,
+                    perpendicular: true // Forces the line to be 90 degrees as it exits
+                } 
+            },
+            connector: { name: 'jumpover' },
             attrs: { line: { stroke: '#333', strokeWidth: 2, targetMarker: { 'type': 'path', 'd': 'M 8 -4 0 0 8 4 Z', fill: '#333' } } }
         }),
         validateConnection: (vs, ms, vt, mt) => ms && mt && vs !== vt,
@@ -54,9 +60,20 @@
         interactive: (cellView) => !cellView.model.get('isLane')
     });
 
+    // Ports are now explicitly labeled by their position
     const ports = {
-        groups: { 'pts': { position: 'ellipse', attrs: { circle: { r: 5, magnet: true, fill: '#0078d4', stroke: '#fff', strokeWidth: 2 } } } },
-        items: [{ group: 'pts', position: 'top' }, { group: 'pts', position: 'bottom' }, { group: 'pts', position: 'left' }, { group: 'pts', position: 'right' }]
+        groups: { 
+            'pts': { 
+                position: 'ellipse', 
+                attrs: { circle: { r: 5, magnet: true, fill: '#0078d4', stroke: '#fff', strokeWidth: 2 } } 
+            } 
+        },
+        items: [
+            { group: 'pts', id: 'top', position: 'top' }, 
+            { group: 'pts', id: 'bottom', position: 'bottom' }, 
+            { group: 'pts', id: 'left', position: 'left' }, 
+            { group: 'pts', id: 'right', position: 'right' }
+        ]
     };
 
     function addLane() {
@@ -65,39 +82,4 @@
         lane.resize(window.innerWidth - 60, 220);
         lane.position(30, (laneCount * 225) + 30);
         lane.attr({
-            body: { fill: 'transparent', stroke: '#d13438', strokeWidth: 1.5, pointerEvents: 'none' },
-            label: { text: 'DEPARTMENT ' + (laneCount + 1), refY: 15, verticalAnchor: 'top', fill: '#d13438', fontWeight: 'bold', fontSize: 14 }
-        });
-        lane.set('isLane', true);
-        lane.toBack();
-        lane.addTo(graph);
-    }
-
-    function addShape(type) {
-        let shape;
-        if (type === 'rect') {
-            shape = new joint.shapes.standard.Rectangle().resize(140, 70).attr({ body: { fill: '#fff', stroke: '#0078d4', strokeWidth: 2 }, label: { text: 'Process Step', fontSize: 12 }});
-        } else if (type === 'ellipse') {
-            shape = new joint.shapes.standard.Ellipse().resize(120, 60).attr({ body: { fill: '#fff', stroke: '#107c10', strokeWidth: 2 }, label: { text: 'Start / End', fontSize: 12 }});
-        } else if (type === 'diamond') {
-            shape = new joint.shapes.standard.Polygon().resize(100, 100).attr({ body: { refPoints: '0,10 10,0 20,10 10,20', fill: '#fff', stroke: '#6264a7', strokeWidth: 2 }, label: { text: 'Decision?', fontSize: 11 }});
-        } else if (type === 'data') {
-            shape = new joint.shapes.standard.Polygon().resize(140, 70).attr({ body: { refPoints: '2,0 12,0 10,10 0,10', fill: '#fff', stroke: '#c43e1c', strokeWidth: 2 }, label: { text: 'Input Data', fontSize: 12 }});
-        }
-        shape.position(150, 150).set('ports', ports).addTo(graph);
-    }
-
-    paper.on('cell:pointerdblclick', (view) => {
-        const updated = prompt("Rename:", view.model.attr('label/text'));
-        if (updated) view.model.attr('label/text', updated);
-    });
-
-    paper.on('cell:contextmenu', (view) => { if(confirm("Delete?")) view.model.remove(); });
-
-    function exportPDF() {
-        const element = document.getElementById('canvas');
-        html2pdf().from(element).set({ margin: 0, filename: 'flow-diagram.pdf', html2canvas: { scale: 2 } }).save();
-    }
-</script>
-</body>
-</html>
+            body: { fill: 'transparent',
