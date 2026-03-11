@@ -5,7 +5,7 @@
     <style>
         body { font-family: 'Segoe UI', sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
         .toolbar { background: #ffffff; padding: 12px; display: flex; gap: 10px; align-items: center; border-bottom: 1px solid #d1d1d1; box-shadow: 0 2px 4px rgba(0,0,0,0.05); z-index: 100; }
-        #canvas { flex-grow: 1; background-color: #f8f9fa; }
+        #canvas { flex-grow: 1; background-color: #fdfdfd; }
         button { padding: 8px 16px; cursor: pointer; border: 1px solid #0078d4; border-radius: 2px; font-size: 13px; background: white; color: #0078d4; font-weight: 600; }
         button:hover { background: #0078d4; color: white; }
         .btn-lane { background: #fff1f0; border-color: #d13438; color: #d13438; }
@@ -21,7 +21,7 @@
     <button onclick="addShape('ellipse')">Start/End</button>
     <button onclick="addShape('diamond')">Decision</button>
     <button onclick="addShape('data')">Data / Input</button>
-    <span class="hint">Double-click text to rename | Drag from blue dots to connect</span>
+    <span class="hint">Double-click to rename | Right-click to delete | Lines jump & avoid shapes</span>
     <button class="btn-pdf" onclick="exportPDF()">Export PDF</button>
 </div>
 
@@ -42,60 +42,4 @@
         height: '100%',
         gridSize: 10,
         drawGrid: { name: 'dot', color: '#e0e0e0' },
-        defaultLink: new joint.shapes.standard.Link({
-            router: { name: 'manhattan' },
-            connector: { name: 'rounded' },
-            attrs: { line: { stroke: '#444', strokeWidth: 2, targetMarker: { 'type': 'path', 'd': 'M 8 -4 0 0 8 4 Z', fill: '#444' } } }
-        }),
-        validateConnection: (vs, ms, vt, mt) => ms && mt && vs !== vt,
-        snapLinks: { radius: 25 },
-        markAvailable: true
-    });
-
-    const ports = {
-        groups: { 'pts': { position: 'ellipse', attrs: { circle: { r: 5, magnet: true, fill: '#0078d4', stroke: '#fff', strokeWidth: 2 } } } },
-        items: [{ group: 'pts' }, { group: 'pts' }, { group: 'pts' }, { group: 'pts' }]
-    };
-
-    function addLane() {
-        const lane = new joint.shapes.standard.Rectangle();
-        lane.resize(window.innerWidth - 100, 200);
-        lane.position(50, (graph.getCells().filter(c => c.get('isLane')).length * 200) + 50);
-        lane.attr({
-            body: { fill: '#ffffff', stroke: '#d13438', strokeWidth: 1, strokeDasharray: '0' },
-            label: { text: 'DEPARTMENT NAME', refY: 15, verticalAnchor: 'top', fill: '#d13438', fontWeight: 'bold', fontSize: 14 }
-        });
-        lane.set('isLane', true);
-        lane.toBack();
-        lane.addTo(graph);
-    }
-
-    function addShape(type) {
-        let shape;
-        if (type === 'rect') {
-            shape = new joint.shapes.standard.Rectangle().resize(140, 70).attr({ body: { fill: '#fff', stroke: '#0078d4', strokeWidth: 2 }, label: { text: 'Process Step', fontSize: 12 }});
-        } else if (type === 'ellipse') {
-            shape = new joint.shapes.standard.Ellipse().resize(120, 60).attr({ body: { fill: '#fff', stroke: '#107c10', strokeWidth: 2 }, label: { text: 'Start / End', fontSize: 12 }});
-        } else if (type === 'diamond') {
-            shape = new joint.shapes.standard.Polygon().resize(100, 100).attr({ body: { refPoints: '0,10 10,0 20,10 10,20', fill: '#fff', stroke: '#6264a7', strokeWidth: 2 }, label: { text: 'Decision?', fontSize: 11 }});
-        } else if (type === 'data') {
-            shape = new joint.shapes.standard.Polygon().resize(140, 70).attr({ body: { refPoints: '2,0 12,0 10,10 0,10', fill: '#fff', stroke: '#c43e1c', strokeWidth: 2 }, label: { text: 'Input Data', fontSize: 12 }});
-        }
-        shape.position(200, 200).set('ports', ports).addTo(graph);
-    }
-
-    paper.on('cell:pointerdblclick', (view) => {
-        const current = view.model.attr('label/text');
-        const updated = prompt("Rename:", current);
-        if (updated) view.model.attr('label/text', updated);
-    });
-
-    paper.on('cell:contextmenu', (view) => { if(confirm("Delete this?")) view.model.remove(); });
-
-    function exportPDF() {
-        const element = document.getElementById('canvas');
-        html2pdf().from(element).set({ margin: 0, filename: 'flow-diagram.pdf', html2canvas: { scale: 2 } }).save();
-    }
-</script>
-</body>
-</html>
+        defaultLink: () => new joint.
