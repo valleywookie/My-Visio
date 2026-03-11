@@ -7,13 +7,22 @@
         body { background: #f3f2f1; margin: 0; padding: 0; display: flex; flex-direction: column; height: 100vh; font-family: sans-serif; overflow: hidden; }
         .toolbar { background: white; padding: 12px; display: flex; gap: 10px; border-bottom: 1px solid #ccc; z-index: 100; }
         #canvas { flex-grow: 1; position: relative; overflow: auto; background-image: radial-gradient(#d1d1d1 1px, transparent 1px); background-size: 20px 20px; }
-        .shape { position: absolute; width: 140px; height: 70px; background: white; display: flex; align-items: center; justify-content: center; font-weight: bold; cursor: move; border: 3px solid; user-select: none; z-index: 10; color: #333; }
+        
+        /* SHAPE TEXT FIXES ADDED HERE */
+        .shape { 
+            position: absolute; width: 140px; height: 70px; background: white; display: flex; align-items: center; justify-content: center; 
+            font-weight: bold; cursor: move; border: 3px solid; user-select: none; z-index: 10; color: #333;
+            box-sizing: border-box; padding: 8px; overflow: hidden; word-wrap: break-word; font-size: 11px; line-height: 1.2; text-align: center;
+        }
+        
         .process { border-color: #0078d4; }
         .start { border-color: #107c10; border-radius: 50px; }
-        .decision { width: 90px; height: 90px; border-color: #6264a7; transform: rotate(45deg); }
+        .decision { width: 90px; height: 90px; border-color: #6264a7; transform: rotate(45deg); padding: 12px; }
         .decision span { transform: rotate(-45deg); display: block; }
-        .data { border: none; background: transparent; }
+        .data { border: none; background: transparent; padding: 0; }
         .data-svg-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; }
+        .data-text { z-index: 11; width: 100%; padding: 8px 15px; box-sizing: border-box; overflow: hidden; pointer-events: none; }
+        
         .lane { position: absolute; width: 98%; height: 230px; border: 2px dashed #d13438; z-index: 1; pointer-events: none; }
         .lane-label { color: #d13438; font-weight: bold; pointer-events: auto; cursor: pointer; background: white; padding: 2px 8px; font-size: 14px; }
         .port { position: absolute; width: 12px; height: 12px; background: #0078d4; border-radius: 50%; opacity: 0; cursor: crosshair; z-index: 20; border: 2px solid white; }
@@ -30,15 +39,14 @@
         .line-elbow { fill: #0078d4; stroke: white; stroke-width: 2; cursor: ns-resize; pointer-events: auto; opacity: 0; }
         svg#svg-lines:hover .line-elbow { opacity: 1; }
 
-        /* --- PRINT STYLES FOR PDF EXPORT --- */
         @media print {
             @page { size: landscape; margin: 10mm; }
             body, html { height: auto !important; overflow: visible !important; background: white !important; }
             .toolbar { display: none !important; }
             #canvas { overflow: visible !important; height: auto !important; background-image: none !important; }
-            .port, .line-hitbox, .line-elbow { display: none !important; } /* Hides blue squares and dots */
+            .port, .line-hitbox, .line-elbow { display: none !important; }
             * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-            .lane { width: 1050px !important; /* Forces lanes to a fixed width to fit landscape paper */ }
+            .lane { width: 1050px !important; }
         }
     </style>
 </head>
@@ -65,7 +73,7 @@
         div.className = 'shape ' + cssClass;
         
         if(cssClass === 'data') {
-            div.innerHTML = '<svg class="data-svg-container" viewBox="0 0 140 70" preserveAspectRatio="none"><polygon points="25,2 138,2 115,68 2,68" fill="white" stroke="#c43e1c" stroke-width="3" /></svg><div style="z-index:11; width:100%;">' + html + '</div>';
+            div.innerHTML = '<svg class="data-svg-container" viewBox="0 0 140 70" preserveAspectRatio="none"><polygon points="25,2 138,2 115,68 2,68" fill="white" stroke="#c43e1c" stroke-width="3" /></svg><div class="data-text">' + html + '</div>';
         } else {
             div.innerHTML = html;
         }
@@ -77,7 +85,7 @@
             const val = prompt("Rename:", div.innerText);
             if (val) {
                 if(cssClass === 'decision') div.querySelector('span').innerText = val;
-                else if(cssClass === 'data') div.querySelector('div').innerText = val;
+                else if(cssClass === 'data') div.querySelector('.data-text').innerText = val;
                 else div.firstChild.textContent = val;
             }
         };
@@ -144,4 +152,42 @@
             const y2 = r2.top + r2.height/2 - canvasR.top;
             const midY = conn.manualY !== null ? conn.manualY : (y1 + y2) / 2;
 
-            const pathStr = 'M ' + x1 + ' ' + y1
+            const pathStr = 'M ' + x1 + ' ' + y1 + ' L ' + x1 + ' ' + midY + ' L ' + x2 + ' ' + midY + ' L ' + x2 + ' ' + y2;
+
+            const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+            path.setAttribute("d", pathStr);
+            path.setAttribute("class", "line-path");
+            path.ondblclick = () => { if(confirm("Delete line?")) { connections.splice(index, 1); drawLines(); } };
+            svg.appendChild(path);
+
+            const hitbox = document.createElementNS("http://www.w3.org/2000/svg", "path");
+            hitbox.setAttribute("d", pathStr);
+            hitbox.setAttribute("class", "line-hitbox");
+            hitbox.ondblclick = () => { if(confirm("Delete line?")) { connections.splice(index, 1); drawLines(); } };
+            svg.appendChild(hitbox);
+
+            const elbow = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+            elbow.setAttribute("x", x1 - 6); elbow.setAttribute("y", midY - 6);
+            elbow.setAttribute("width", 12); elbow.setAttribute("height", 12);
+            elbow.setAttribute("class", "line-elbow");
+            elbow.onmousedown = (e) => {
+                e.stopPropagation();
+                document.onmousemove = (moveE) => { conn.manualY = moveE.clientY - canvasR.top; drawLines(); };
+                document.onmouseup = () => { document.onmousemove = null; };
+            };
+            svg.appendChild(elbow);
+        });
+
+        if (activeStart) {
+            const r1 = activeStart.getBoundingClientRect();
+            const x1 = r1.left + r1.width/2 - canvasR.left;
+            const y1 = r1.top + r1.height/2 - canvasR.top;
+            const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+            path.setAttribute("d", 'M ' + x1 + ' ' + y1 + ' L ' + (mX - canvasR.left) + ' ' + (mY - canvasR.top));
+            path.setAttribute("class", "line-path");
+            svg.appendChild(path);
+        }
+    }
+</script>
+</body>
+</html>
